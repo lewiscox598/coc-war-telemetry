@@ -1,33 +1,37 @@
-/* Hand-written. No framework.
-   Palette: validated categorical slots on the panel surface #1c1c1b
-   (blue #3987e5, orange #d95926, aqua #199e70 -- all checks pass, worst adjacent
-   CVD dE 9.4). Status colours are reserved and never reused as series colours.
-   Text never wears a data colour; identity comes from a mark beside it. */
+/* WAR ROOM
+   Hand-written, no framework, mobile-first.
+
+   Colour discipline:
+   - Gold is IDENTITY and star glyphs only. It never encodes a data series.
+   - Chart series use the validated categorical slots (blue/orange/aqua), which
+     pass every gate against this surface: worst adjacent CVD dE 9.4.
+   - Win/lose are status colours, always paired with a word, never colour alone.
+   - Text wears text tokens. All of them clear WCAG AA on #171512:
+     ink 15.9:1, ink-2 7.6:1, ink-3 4.9:1, gold 9.8:1.
+*/
 
 :root {
-  /* Surfaces */
-  --bg:         #101010;
-  --surface:    #1c1c1b;
-  --surface-2:  #242423;
-  --line:       #2e2e2b;
-  --line-soft:  #252523;
+  --bg:        #0e0d0b;
+  --surface:   #171512;
+  --surface-2: #1f1c18;
+  --raised:    #252119;
+  --line:      #322d26;
+  --line-soft: #262119;
 
-  /* Text tokens */
-  --ink:        #f4f4f1;
-  --ink-2:      #a9a9a0;
-  --ink-3:      #78786f;
+  --ink:   #f5efe4;
+  --ink-2: #b0a693;
+  --ink-3: #8d8474;
 
-  /* Data */
-  --series-1:   #3987e5;
-  --series-2:   #d95926;
-  --track:      #184f95;
+  --gold:      #f0b429;
+  --gold-deep: #c8901a;
+  --gold-dim:  #4a3a12;
 
-  /* Status (reserved -- always paired with a label, never colour alone) */
-  --good:       #0ca30c;
-  --warning:    #fab219;
-  --critical:   #d03b3b;
+  --win:  #4ade80;
+  --lose: #f87171;
 
-  /* Scale */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
   --s5: 24px; --s6: 32px; --s7: 48px;
   --radius: 14px;
@@ -40,48 +44,225 @@ html { -webkit-text-size-adjust: 100%; }
 body {
   margin: 0;
   padding: 0 var(--gutter) var(--s7);
-  background: var(--bg);
+  background:
+    radial-gradient(1200px 500px at 50% -200px, #1b1813 0%, transparent 70%),
+    var(--bg);
   color: var(--ink);
   font: 400 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   overflow-x: hidden;
-  font-feature-settings: "cv01", "ss01";
 }
 
-.wrap { width: 100%; max-width: 620px; margin-inline: auto; }
+.wrap { width: 100%; max-width: 640px; margin-inline: auto; }
 
-/* --- Header ----------------------------------------------------------- */
+/* --- Command bar ------------------------------------------------------ */
 
-header { padding: var(--s6) 0 var(--s2); }
-
-.eyebrow {
-  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--ink-3); margin: 0 0 var(--s2);
+.bar {
+  display: flex; align-items: center; gap: var(--s3);
+  padding: var(--s5) 0 var(--s4); flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: var(--s5);
 }
-
-h1 {
-  font-size: clamp(1.6rem, 1.25rem + 1.6vw, 2.4rem);
-  line-height: 1.1; margin: 0 0 var(--s2);
-  letter-spacing: -0.02em; font-weight: 680;
+.bar .mark {
+  font-size: clamp(1.15rem, 1rem + 0.8vw, 1.5rem);
+  font-weight: 700; letter-spacing: -0.015em; margin: 0;
 }
+.bar .meta { color: var(--ink-3); font-size: 0.82rem; margin: 2px 0 0; }
+.bar .spacer { flex: 1 1 auto; }
 
-h2 {
-  font-size: 0.78rem; font-weight: 650; letter-spacing: 0.09em;
-  text-transform: uppercase; color: var(--ink-3);
-  margin: var(--s6) 0 var(--s3);
+.phase {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 6px 12px; border-radius: 999px;
+  background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line);
+  white-space: nowrap;
 }
+.phase::before {
+  content: ""; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; flex: none;
+}
+.phase.prep   { color: var(--gold); border-color: var(--gold-dim); }
+.phase.battle { color: var(--win); border-color: #1d4023; }
+.phase.battle::before { animation: pulse 2s ease-in-out infinite; }
+.phase.ended  { color: var(--ink-3); }
 
-.sub { color: var(--ink-2); font-size: 0.92rem; margin: 0; }
+@keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: 0.25 } }
 
-nav { display: flex; gap: var(--s2); margin-top: var(--s4); flex-wrap: wrap; }
+nav { display: flex; gap: var(--s2); }
 nav a {
-  padding: 7px 16px; border-radius: 999px; text-decoration: none;
-  background: var(--surface); color: var(--ink-2); font-size: 0.88rem;
-  border: 1px solid var(--line); transition: color .15s, border-color .15s;
+  padding: 6px 15px; border-radius: 999px; text-decoration: none;
+  background: var(--surface); color: var(--ink-2); font-size: 0.85rem;
+  border: 1px solid var(--line); white-space: nowrap;
 }
 nav a:hover { color: var(--ink); border-color: var(--ink-3); }
-nav a.on { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+nav a.on { background: var(--gold); color: #1b1304; border-color: var(--gold); font-weight: 650; }
 
-/* --- Cards ------------------------------------------------------------ */
+/* --- Section headings ------------------------------------------------- */
+
+h2 {
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.13em;
+  text-transform: uppercase; color: var(--ink-3);
+  margin: var(--s6) 0 var(--s3);
+  display: flex; align-items: center; gap: var(--s3);
+}
+h2::after {
+  content: ""; flex: 1 1 auto; height: 1px; background: var(--line);
+}
+
+/* --- Orders: the reader's own question, answered first ---------------- */
+
+.orders {
+  position: relative; overflow: hidden;
+  background: linear-gradient(180deg, #221c11 0%, var(--surface) 100%);
+  border: 1px solid var(--gold-dim); border-radius: var(--radius);
+  padding: var(--s4); margin-bottom: var(--s4);
+}
+.orders::before {
+  content: ""; position: absolute; inset: 0 0 auto 0; height: 2px;
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+.orders .o-label {
+  font-size: 0.66rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--gold); margin: 0 0 var(--s3);
+}
+.orders .o-line { display: flex; gap: var(--s3); align-items: baseline; margin-bottom: 6px; }
+.orders .o-key {
+  font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-3); width: 54px; flex: none; font-weight: 650;
+}
+.orders .o-val { font-size: 1rem; font-weight: 600; min-width: 0; }
+.orders .o-val .sub { color: var(--ink-3); font-weight: 400; font-size: 0.85rem; margin-left: 6px; }
+.orders .o-warn { color: var(--lose); font-weight: 650; }
+
+/* --- Countdown / headline figure -------------------------------------- */
+
+.figure {
+  font-size: clamp(2.4rem, 1.9rem + 3vw, 3.6rem);
+  font-weight: 700; line-height: 0.95; letter-spacing: -0.035em;
+  margin: 0; font-variant-numeric: proportional-nums;
+}
+.figure.gold { color: var(--gold); }
+.figure-label { color: var(--ink-2); font-size: 0.9rem; margin: var(--s2) 0 0; }
+.figure-sub { color: var(--ink-3); font-size: 0.8rem; margin: 3px 0 0; }
+
+.headline {
+  display: grid; gap: var(--s4);
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--s4); margin-bottom: var(--s3);
+}
+.headline .vs { font-size: 1.1rem; font-weight: 650; }
+.headline .vs em { font-style: normal; color: var(--ink-3); font-weight: 400; }
+
+/* Attack burn-down */
+.burn { display: grid; gap: 7px; }
+.burn .b-row { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--ink-3); }
+.burn .b-track { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.burn .b-fill { height: 100%; background: var(--gold); border-radius: 3px; }
+
+/* --- THE MAP ---------------------------------------------------------- */
+
+.map { display: grid; gap: var(--s2); }
+
+.duel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+/* The whole matchup is the toggle: no separate "expand" row stealing height. */
+.duel-head {
+  display: grid;
+  grid-template-columns: 1fr 64px 1fr;
+  align-items: center;
+  gap: var(--s2);
+  padding: var(--s3);
+  cursor: pointer;
+  list-style: none;
+}
+.duel-head::-webkit-details-marker { display: none; }
+.duel:hover { border-color: #443c31; }
+.duel[open] { border-color: #443c31; }
+.duel.mine { border-color: var(--gold-dim); background: linear-gradient(180deg, #1e1a11 0%, var(--surface) 60%); }
+.duel.done { opacity: 0.55; }
+.duel.risk { border-color: #4a2a26; }
+
+.duel .side { min-width: 0; display: grid; gap: 4px; }
+.duel .side.us { text-align: right; }
+.duel .side.them { text-align: left; }
+
+.duel .nm {
+  font-weight: 640; font-size: 0.95rem;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.duel .side.us .nm::before { content: attr(data-pos) "  "; color: var(--ink-3); font-weight: 500; }
+.duel .side.them .nm::after { content: "  " attr(data-pos); color: var(--ink-3); font-weight: 500; }
+.duel .th { font-size: 0.74rem; color: var(--ink-3); letter-spacing: 0.04em; }
+/* A hopeless matchup must read without expanding the row. Colour plus the
+   word "over" -- never colour alone. */
+.duel .gap {
+  color: var(--lose); font-weight: 700; margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.duel .glyphs { display: flex; gap: 6px; align-items: center; }
+.duel .side.us .glyphs { justify-content: flex-end; }
+
+/* Attacks remaining, as pips rather than a fraction */
+.pips { display: inline-flex; gap: 3px; }
+.pips i { width: 7px; height: 7px; border-radius: 50%; background: var(--gold); display: block; }
+.pips i.spent { background: var(--line); }
+
+svg.stars .on  { fill: var(--gold); }
+svg.stars .off { fill: none; stroke: #6b6154; stroke-width: 2; }
+
+/* The wire between the two sides */
+.wire { display: grid; justify-items: center; gap: 3px; }
+.wire .exp {
+  font-size: 0.68rem; color: var(--ink-3); font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wire .line {
+  width: 100%; height: 2px; border-radius: 1px; position: relative;
+  background: linear-gradient(90deg, transparent, #4a4238 25%, #4a4238 75%, transparent);
+}
+.wire .line::after {
+  content: ""; position: absolute; right: 0; top: -3px;
+  border-left: 6px solid #6b6154; border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+/* A chevron under the wire signals the row expands, without its own row. */
+.wire .more { font-size: 0.62rem; color: var(--ink-3); letter-spacing: 0.06em; }
+.duel[open] .wire .more::after { content: " \25B4"; }
+.duel:not([open]) .wire .more::after { content: " \25BE"; }
+.duel.mine .wire .line {
+  background: linear-gradient(90deg, transparent, var(--gold-deep) 25%, var(--gold-deep) 75%, transparent);
+}
+.duel.mine .wire .line::after { border-left-color: var(--gold); }
+
+.detail {
+  border-top: 1px solid var(--line-soft);
+  padding: var(--s3) var(--s4) var(--s4);
+  background: #141210;
+  font-size: 0.86rem; display: grid; gap: var(--s2);
+}
+.detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px var(--s3); margin: 0; }
+.detail dt { color: var(--ink-3); font-size: 0.78rem; letter-spacing: 0.04em; }
+.detail dd { margin: 0; color: var(--ink-2); }
+.detail .why { color: var(--ink-2); margin: 0; }
+.detail .cite { color: var(--ink-3); font-size: 0.78rem; margin: 0; }
+.detail a { color: var(--gold); text-decoration: none; }
+.detail a:hover { text-decoration: underline; }
+
+.tag {
+  display: inline-block;
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 3px 7px; border-radius: 4px; font-weight: 700;
+  background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--line);
+}
+.tag.measured { color: var(--win); border-color: #1d4023; }
+.tag.risk { color: var(--lose); border-color: #4a2a26; }
+.tag.gold { color: var(--gold); border-color: var(--gold-dim); }
+
+/* --- Cards, tables, empties ------------------------------------------- */
 
 .card {
   background: var(--surface); border: 1px solid var(--line);
@@ -89,221 +270,92 @@ nav a.on { background: var(--ink); color: var(--bg); border-color: var(--ink); f
 }
 .card.flush { padding: 0; overflow: hidden; }
 
-/* --- Hero: the one number the page leads with ------------------------- */
-
-.hero { display: grid; gap: var(--s4); }
-
-.hero-head {
-  display: flex; justify-content: space-between; align-items: center;
-  gap: var(--s3); flex-wrap: wrap;
-}
-.hero-vs { font-size: 1.15rem; font-weight: 650; letter-spacing: -0.01em; }
-.hero-vs span { color: var(--ink-3); font-weight: 400; }
-
-.figure {
-  /* Proportional figures: tabular-nums makes a large number look loose. */
-  font-size: clamp(2.6rem, 2rem + 3.4vw, 4rem);
-  font-weight: 700; line-height: 0.95; letter-spacing: -0.03em;
-  margin: 0; font-variant-numeric: proportional-nums;
-}
-.figure-label { color: var(--ink-2); font-size: 0.92rem; margin: var(--s2) 0 0; }
-.figure-sub { color: var(--ink-3); font-size: 0.82rem; margin: var(--s1) 0 0; }
-
-.pill {
-  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
-  padding: 5px 11px; border-radius: 999px; background: var(--surface-2);
-  color: var(--ink-2); white-space: nowrap; font-weight: 600;
-  border: 1px solid var(--line);
-}
-.pill.live { background: var(--good); color: #042404; border-color: var(--good); }
-.pill.prep { background: var(--surface-2); color: var(--warning); border-color: #4a3c14; }
-
-/* --- KPI row ---------------------------------------------------------- */
-
-.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s3); margin: var(--s3) 0; }
-
-.kpi {
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: var(--s4); min-width: 0;
-}
-.kpi .k-label {
-  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em;
-  color: var(--ink-3); margin: 0 0 var(--s2); font-weight: 600;
-}
-.kpi .k-value {
-  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); font-weight: 680;
-  line-height: 1; letter-spacing: -0.02em; margin: 0;
-}
-.kpi .k-unit { font-size: 0.55em; color: var(--ink-3); font-weight: 500; margin-left: 2px; }
-.kpi .k-foot { font-size: 0.78rem; color: var(--ink-3); margin: var(--s2) 0 0; }
-.kpi .k-spark { margin-top: var(--s3); display: block; }
-
-/* --- Meters: attacks used, as a ratio against a limit ----------------- */
-
-.lineup { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s3); }
-.lineup li { display: grid; gap: 7px; }
-
-.lineup .row {
-  display: flex; justify-content: space-between; align-items: baseline;
-  gap: var(--s3);
-}
-.lineup .who { font-weight: 600; font-size: 0.95rem; min-width: 0; }
-.lineup .pos { color: var(--ink-3); font-weight: 500; margin-right: 6px; font-variant-numeric: tabular-nums; }
-.lineup .th { color: var(--ink-3); font-size: 0.82rem; font-weight: 400; margin-left: 7px; }
-.lineup .state { font-size: 0.82rem; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.lineup .state.done { color: var(--good); font-weight: 600; }
-
-/* Unfilled track is a lighter step of the fill's own ramp, so state reads
-   across the whole bar rather than only where it is filled. */
-.meter { height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; display: flex; gap: 2px; }
-.meter i { display: block; background: var(--series-1); border-radius: 2px; flex: 0 0 auto; }
-.meter i.empty { background: #2b2b29; flex: 1 1 auto; }
-.meter.full i { background: var(--good); }
-
-/* --- Charts ----------------------------------------------------------- */
-
-/* height:auto would scale the viewBox to the container width, making the chart
-   ~330px tall on a desktop. Cap it and centre the letterboxed remainder. */
-.chart { display: block; width: 100%; height: auto; max-height: 280px;
-         margin-inline: auto; overflow: visible; }
-.chart-legend {
-  display: flex; gap: var(--s4); flex-wrap: wrap;
-  margin: var(--s3) 0 0; font-size: 0.8rem; color: var(--ink-2);
-}
-.chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
-.chart-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
-
-/* --- Tables ----------------------------------------------------------- */
-
 .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-
-th, td {
-  padding: 11px 12px; text-align: right; white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
+table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+th, td { padding: 10px 12px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 th:first-child, td:first-child {
-  text-align: left; position: sticky; left: 0;
-  background: var(--surface); font-variant-numeric: normal;
+  text-align: left; position: sticky; left: 0; background: var(--surface);
+  font-variant-numeric: normal;
 }
 thead th {
-  color: var(--ink-3); font-weight: 600; font-size: 0.72rem;
-  text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--ink-3); font-weight: 700; font-size: 0.68rem;
+  text-transform: uppercase; letter-spacing: 0.08em;
   border-bottom: 1px solid var(--line); cursor: pointer; user-select: none;
   position: sticky; top: 0; background: var(--surface);
 }
 thead th:hover { color: var(--ink); }
-thead th[aria-sort="ascending"]::after { content: " \25B2"; font-size: 0.65em; }
-thead th[aria-sort="descending"]::after { content: " \25BC"; font-size: 0.65em; }
-
+thead th[aria-sort="ascending"]::after  { content: " \25B2"; font-size: 0.6em; }
+thead th[aria-sort="descending"]::after { content: " \25BC"; font-size: 0.6em; }
 tbody tr { border-bottom: 1px solid var(--line-soft); }
 tbody tr:last-child { border-bottom: 0; }
 tbody tr:hover td, tbody tr:hover td:first-child { background: var(--surface-2); }
 
-.win { color: var(--good); } .lose { color: var(--critical); } .tie { color: var(--ink-2); }
-.dim { color: var(--ink-3); }
+.win { color: var(--win); } .lose { color: var(--lose); } .dim { color: var(--ink-3); }
 .num-strong { font-weight: 650; }
 
-/* --- Empty states: intentional, not broken ---------------------------- */
-
-.empty {
-  display: grid; gap: var(--s2); padding: var(--s5) var(--s4);
-  text-align: center; color: var(--ink-3);
-}
-.empty .e-title { color: var(--ink-2); font-weight: 600; font-size: 0.95rem; }
-.empty .e-body { font-size: 0.85rem; max-width: 42ch; margin-inline: auto; line-height: 1.5; }
+.empty { display: grid; gap: var(--s2); padding: var(--s5) var(--s4); text-align: center; color: var(--ink-3); }
+.empty .e-title { color: var(--ink-2); font-weight: 650; font-size: 0.95rem; }
+.empty .e-body { font-size: 0.85rem; max-width: 44ch; margin-inline: auto; line-height: 1.5; }
 
 .note {
-  background: var(--surface-2); border-left: 2px solid var(--series-1);
-  padding: 12px 15px; border-radius: 0 8px 8px 0;
-  font-size: 0.85rem; color: var(--ink-2); margin: var(--s3) 0 0;
+  background: var(--surface-2); border-left: 2px solid var(--gold-deep);
+  padding: 11px 15px; border-radius: 0 8px 8px 0;
+  font-size: 0.84rem; color: var(--ink-2); margin: var(--s3) 0 0;
 }
-.note strong { color: var(--ink); font-weight: 600; }
+.note strong { color: var(--ink); font-weight: 650; }
+
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s2); margin: var(--s3) 0; }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: var(--s4); min-width: 0; }
+.kpi .k-label { font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-3); margin: 0 0 var(--s2); font-weight: 700; }
+.kpi .k-value { font-size: clamp(1.4rem, 1.1rem + 1vw, 1.9rem); font-weight: 700; line-height: 1; letter-spacing: -0.025em; margin: 0; }
+.kpi .k-unit { font-size: 0.55em; color: var(--ink-3); font-weight: 500; margin-left: 2px; }
+.kpi .k-foot { font-size: 0.75rem; color: var(--ink-3); margin: var(--s2) 0 0; }
+.kpi .k-spark { margin-top: var(--s3); display: block; }
+
+.chart { display: block; width: 100%; height: auto; max-height: 280px; margin-inline: auto; overflow: visible; }
+.chart-legend { display: flex; gap: var(--s4); flex-wrap: wrap; margin: var(--s3) 0 0; font-size: 0.78rem; color: var(--ink-2); }
+.chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.chart-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
 
 footer {
   margin-top: var(--s7); padding-top: var(--s4);
-  border-top: 1px solid var(--line); color: var(--ink-3); font-size: 0.76rem;
+  border-top: 1px solid var(--line); color: var(--ink-3); font-size: 0.74rem;
 }
-footer p { margin: var(--s1) 0; }
+footer p { margin: 3px 0; }
 
-/* --- Large phones / small tablets ------------------------------------- */
+/* --- Larger phones ---------------------------------------------------- */
 
 @media (min-width: 560px) {
   :root { --gutter: 24px; }
-  .wrap { max-width: 700px; }
-  .card, .kpi { padding: var(--s5); }
+  .wrap { max-width: 720px; }
+  .card, .kpi, .orders, .headline { padding: var(--s5); }
   .kpis { grid-template-columns: repeat(4, 1fr); }
+  .duel-head { grid-template-columns: 1fr 110px 1fr; padding: var(--s4); }
 }
 
 /* --- Laptops ---------------------------------------------------------- */
 
 @media (min-width: 1024px) {
-  .wrap { max-width: 1000px; }
-
-  .hero { grid-template-columns: minmax(280px, 0.85fr) 1.15fr; gap: var(--s5) var(--s7); align-items: start; }
-  .hero-head { grid-column: 1 / -1; }
-  .hero > :only-child, .cols > :only-child { grid-column: 1 / -1; }
-
+  .wrap { max-width: 1020px; }
+  .headline { grid-template-columns: minmax(240px, 0.8fr) 1.2fr; gap: var(--s5) var(--s6); align-items: center; }
+  .headline > :only-child, .cols > :only-child { grid-column: 1 / -1; }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--s6); align-items: start; }
   .cols > section { min-width: 0; }
-
-  table { font-size: 0.9rem; }
-  th, td { padding: 12px 14px; }
+  .duel-head { grid-template-columns: 1fr 190px 1fr; }
+  .duel .nm { font-size: 1rem; }
+  table { font-size: 0.88rem; }
+  th, td { padding: 11px 14px; }
 }
 
 /* --- Desktops --------------------------------------------------------- */
 
 @media (min-width: 1280px) {
-  .wrap { max-width: 1180px; }
+  .wrap { max-width: 1160px; }
   body { font-size: 17px; }
-  .card, .kpi { padding: var(--s5); }
-  th, td { padding: 13px 18px; }
-  .hero { gap: var(--s5) 64px; }
+  .duel-head { grid-template-columns: 1fr 240px 1fr; }
+  th, td { padding: 12px 18px; }
 }
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-
-/* --- War plan --------------------------------------------------------- */
-
-.plan { display: grid; gap: var(--s3); }
-
-.plan-item {
-  background: var(--surface); border: 1px solid var(--line);
-  border-radius: var(--radius); padding: var(--s4);
-}
-.plan-item.warn { border-color: #4a2a2a; }
-
-.plan-row {
-  display: flex; align-items: baseline; gap: var(--s2);
-  flex-wrap: wrap; margin-bottom: var(--s2);
-}
-.plan-arrow { color: var(--ink-3); }
-.plan-name { font-weight: 650; }
-.plan-th { color: var(--ink-3); font-size: 0.84rem; margin-left: 5px; }
-.plan-exp { margin-left: auto; font-weight: 680; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-/* Confidence is a label, never colour alone. */
-.tag {
-  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em;
-  padding: 3px 8px; border-radius: 5px; font-weight: 650;
-  background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line);
-}
-.tag.measured { color: var(--good); border-color: #1d4023; }
-.tag.baseline { color: var(--ink-3); }
-.tag.danger { color: var(--critical); border-color: #4a2a2a; }
-
-.basis { color: var(--ink-3); font-size: 0.84rem; margin: 0 0 var(--s3); }
-
-.army { border-top: 1px solid var(--line-soft); padding-top: var(--s3); margin-top: var(--s3); }
-.army-name { font-weight: 640; font-size: 0.94rem; }
-.army dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px var(--s3); margin: var(--s2) 0 0; font-size: 0.86rem; }
-.army dt { color: var(--ink-3); }
-.army dd { margin: 0; color: var(--ink-2); }
-.army .why { font-size: 0.85rem; color: var(--ink-2); margin: var(--s2) 0 0; }
-.army a { color: var(--series-1); text-decoration: none; }
-.army a:hover { text-decoration: underline; }
-.army .blocked { font-size: 0.82rem; color: var(--ink-3); margin: 6px 0 0; }
-
-@media (min-width: 1024px) {
-  .plan { grid-template-columns: 1fr 1fr; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
 }

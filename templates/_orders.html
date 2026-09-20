@@ -1,0 +1,50 @@
+{# Shared: the reader's own question, answered before any clan-wide figure.
+   During a war that question is "what do I do"; afterwards it is "how did I do",
+   so the card reports rather than instructs once the war has ended. #}
+{% if my_duel %}
+<div class="orders">
+  {% if phase == 'ended' %}
+  <p class="o-label">Your war</p>
+  <div class="o-line">
+    <span class="o-key">Hit</span>
+    <span class="o-val">#{{ my_duel.defender_position }} {{ my_duel.defender }}<span class="sub">TH{{ my_duel.defender_th }}</span></span>
+  </div>
+  <div class="o-line">
+    <span class="o-key">Scored</span>
+    <span class="o-val">{{ stars(my_duel.stars_scored, 3, size=17) | safe }}<span class="sub">{{ my_duel.stars_scored }} stars from {{ my_duel.attacks_used }} attack{{ '' if my_duel.attacks_used == 1 else 's' }}</span></span>
+  </div>
+  {% if my_duel.attacks_left %}
+  <div class="o-line">
+    <span class="o-key">Missed</span>
+    <span class="o-val o-warn">{{ my_duel.attacks_left }} attack{{ '' if my_duel.attacks_left == 1 else 's' }} unused</span>
+  </div>
+  {% endif %}
+
+  {% else %}
+  <p class="o-label">Your orders</p>
+  <div class="o-line">
+    <span class="o-key">Hit</span>
+    <span class="o-val">#{{ my_duel.defender_position }} {{ my_duel.defender }}<span class="sub">TH{{ my_duel.defender_th }}</span></span>
+  </div>
+  {% for a in my_duel.armies %}{% if loop.first and a.viable %}
+  <div class="o-line">
+    <span class="o-key">Army</span>
+    <span class="o-val">{{ a.name }}<span class="sub">{{ a.composition }}</span></span>
+  </div>
+  {% endif %}{% endfor %}
+  <div class="o-line">
+    <span class="o-key">Left</span>
+    <span class="o-val">
+      {% if my_duel.attacks_left %}{{ my_duel.attacks_left }} of {{ my_duel.attacks_available }} attacks{% else %}<span class="win">all used</span>{% endif %}
+      {% if war %}<span class="sub">{{ (war.end_time if phase == 'battle' else war.start_time) | when }}</span>{% endif %}
+    </span>
+  </div>
+  {% if my_duel.outmatched %}
+  <div class="o-line">
+    <span class="o-key">Note</span>
+    <span class="o-val o-warn">Outmatched by {{ -my_duel.th_diff }} levels &mdash; take the Town Hall for one star, don't chase three.</span>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}

@@ -4,39 +4,43 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0e0d0b">
 <title>{% block title %}{{ clan_name }}{% endblock %}</title>
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="{{ root }}style.css">
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <p class="eyebrow">{% block eyebrow %}{% endblock %}</p>
-    <h1>{% block heading %}{{ clan_name }}{% endblock %}</h1>
-    <p class="sub">{% block sub %}{% endblock %}</p>
+
+  <div class="bar">
+    <div>
+      <p class="mark">{% block heading %}{{ clan_name }}{% endblock %}</p>
+      <p class="meta">{% block sub %}{% endblock %}</p>
+    </div>
+    <span class="spacer"></span>
+    {% if war %}<span class="phase {{ phase }}">{{ war.state_label }}</span>{% endif %}
     <nav>
       <a href="{{ root }}" class="{{ 'on' if page == 'clan' }}">Clan</a>
       <a href="{{ root }}me/" class="{{ 'on' if page == 'me' }}">{{ me_name }}</a>
     </nav>
-  </header>
+  </div>
 
   {% block content %}{% endblock %}
 
   <footer>
-    <p>Generated {{ generated_at }} &middot; {{ capture_count }} captures since {{ first_capture }}</p>
+    <p>{{ capture_count }} captures since {{ first_capture }} &middot; built {{ generated_at }}</p>
     <p>This material is unofficial and is not endorsed by Supercell.</p>
   </footer>
 </div>
 
 <script>
-// Presentation only. No data fetching and no API calls: the key never reaches
-// the client. The countdown reformats a timestamp already embedded in the page,
-// so the hero figure stays accurate between builds instead of going stale.
+// Presentation only. No data fetching, no API calls: the key never reaches the
+// client. The countdown reformats a timestamp already in the page, so the
+// headline stays right between builds instead of going stale.
 (function () {
   function tick() {
     document.querySelectorAll("[data-countdown]").forEach(function (el) {
-      var target = new Date(el.dataset.countdown).getTime();
-      var delta = target - Date.now();
+      var delta = new Date(el.dataset.countdown).getTime() - Date.now();
       if (delta <= 0) { el.textContent = "now"; return; }
       var m = Math.floor(delta / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
       el.textContent = d > 0 ? d + "d " + (h % 24) + "h"
@@ -44,11 +48,9 @@
                              : m + "m";
     });
   }
-  tick();
-  setInterval(tick, 30000);
+  tick(); setInterval(tick, 30000);
 })();
 
-// Table sorting.
 document.querySelectorAll("table[data-sortable]").forEach(function (table) {
   var body = table.tBodies[0];
   table.querySelectorAll("thead th").forEach(function (th, col) {
@@ -56,15 +58,13 @@ document.querySelectorAll("table[data-sortable]").forEach(function (table) {
       var desc = th.getAttribute("aria-sort") !== "descending";
       table.querySelectorAll("thead th").forEach(function (o) { o.removeAttribute("aria-sort"); });
       th.setAttribute("aria-sort", desc ? "descending" : "ascending");
-      var rows = Array.from(body.rows);
-      rows.sort(function (a, b) {
+      Array.from(body.rows).sort(function (a, b) {
         var x = a.cells[col].dataset.v ?? a.cells[col].textContent.trim();
         var y = b.cells[col].dataset.v ?? b.cells[col].textContent.trim();
         var nx = parseFloat(x), ny = parseFloat(y);
         var cmp = (!isNaN(nx) && !isNaN(ny)) ? nx - ny : x.localeCompare(y);
         return desc ? -cmp : cmp;
-      });
-      rows.forEach(function (r) { body.appendChild(r); });
+      }).forEach(function (r) { body.appendChild(r); });
     });
   });
 });

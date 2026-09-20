@@ -14,7 +14,7 @@ import sqlite3
 from datetime import UTC, datetime
 from html import escape
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 from zoneinfo import ZoneInfo
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -93,6 +93,7 @@ def _environment(templates: Path) -> Environment:
         lstrip_blocks=True,
     )
     env.filters["when"] = format_when
+    env.globals["stars"] = star_row
     return env
 
 
@@ -142,7 +143,20 @@ def gather(conn: sqlite3.Connection, player_tag: str) -> dict[str, Any]:
     """Everything both pages need, read once."""
     apply_views(conn)
 
-    war = current_war(conn)
+    # current_war() is live-only by design. But when a war has just finished the
+    # page should show the result and the final map, not fall straight back to an
+    # empty state -- so fall back to the most recent war of any state.
+    war = (
+        current_war(conn)
+        or conn.execute(
+            """
+        SELECT * FROM wars
+        ORDER BY COALESCE(end_time, start_time, preparation_start) DESC
+        LIMIT 1
+        """
+        ).fetchone()
+    )
+
     roster: list[dict[str, Any]] = []
     if war:
         war = dict(war)
@@ -240,25 +254,24 @@ def gather(conn: sqlite3.Connection, player_tag: str) -> dict[str, Any]:
         ),
     ]
 
-    # War plan: only meaningful while a war exists. Each attacker carries the
-    # evidence behind its target and the armies they can actually field.
-    plan: list[dict[str, Any]] = []
-    cleanup: list[dict[str, Any]] = []
-    if war:
-        for row in recommend_assignments(conn, war["war_id"]):
-            row = dict(row)
-            row["armies"] = army_options(conn, row["attacker_tag"], row["attacker_th"])
-            plan.append(row)
-        if war["state"] in ("inWar", "warEnded"):
-            cleanup = cleanup_board(conn, war["war_id"])
+    # The war map: one row per matchup, carrying both sides' live state.
+    duels, my_duel = _duels(conn, war, player_tag)
+    phase = PHASES.get(war["state"], "idle") if war else "idle"
+
+    attacks_used = sum(d["attacks_used"] for d in duels)
+    attacks_total = sum(d["attacks_available"] for d in duels)
 
     return {
         "war": war,
         "roster": roster,
-        "plan": plan,
-        "cleanup": cleanup,
-        "plan_expected": round(sum(p["expected_stars"] for p in plan), 1),
-        "plan_max": len(plan) * 3,
+        "duels": duels,
+        "my_duel": my_duel,
+        "phase": phase,
+        "attacks_used": attacks_used,
+        "attacks_total": attacks_total,
+        "attacks_pct": round(attacks_used / attacks_total * 100) if attacks_total else 0,
+        "plan_expected": round(sum(d["expected_stars"] for d in duels), 1),
+        "plan_max": len(duels) * 3,
         "army_retrieved": RETRIEVED,
         "hero": _hero(war, roster, history),
         "history": history,
@@ -440,3 +453,123 @@ def svg_war_stars(wars: list[dict[str, Any]], *, width: int = 520, height: int =
 
     parts.append("</svg>")
     return "".join(parts)
+
+
+# --- War Room primitives -------------------------------------------------
+
+PHASES: Final = {
+    "preparation": "prep",
+    "inWar": "battle",
+    "warEnded": "ended",
+}
+
+
+def star_row(earned: int | None, total: int = 3, *, size: int = 15) -> str:
+    """Stars as glyphs, which is the native unit of this game.
+
+    A row of filled and hollow stars reads instantly at any size; the integer 2
+    does not. Drawn as SVG rather than text glyphs so it renders identically
+    across platforms instead of inheriting whatever star the font happens to ship.
+    """
+    earned = 0 if earned is None else max(0, min(total, int(earned)))
+    gap = size * 0.18
+    width = total * size + (total - 1) * gap
+    path = "M12 2.6l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.5 6.2 20.5l1.1-6.5-4.7-4.6 6.5-.95z"
+    parts = [
+        f'<svg class="stars" viewBox="0 0 {width:.1f} {size}" width="{width:.1f}" '
+        f'height="{size}" role="img" aria-label="{earned} of {total} stars">'
+    ]
+    for i in range(total):
+        x = i * (size + gap)
+        scale = size / 24
+        cls = "on" if i < earned else "off"
+        parts.append(
+            f'<g transform="translate({x:.1f},0) scale({scale:.3f})">'
+            f'<path class="{cls}" d="{path}"/></g>'
+        )
+    parts.append("</svg>")
+    return "".join(parts)
+
+
+def _duels(
+    conn: sqlite3.Connection, war: dict[str, Any] | None, player_tag: str
+) -> tuple[list[dict[str, Any]], dict[str, Any] | None]:
+    """One row per matchup: our attacker, their base, and the live state of both.
+
+    The war map replaces the old roster list, war-plan cards and cleanup board.
+    They were three views of the same thing -- who is hitting whom, and how it is
+    going -- so they collapse into one structure the page can render as facing
+    columns, which is how players already picture a war.
+    """
+    if not war:
+        return [], None
+
+    war_id = war["war_id"]
+    usage = {
+        r["player_tag"]: dict(r)
+        for r in conn.execute("SELECT * FROM member_war_usage WHERE war_id = ?", (war_id,))
+    }
+    defence = {b["name"]: b for b in cleanup_board(conn, war_id)}
+
+    # Who each member ACTUALLY hit first. An assignment is a plan; once someone
+    # attacks, showing their stars beside a base they never touched is simply
+    # wrong, so the map switches to the real pairing as soon as one exists.
+    actual = {
+        r["attacker_tag"]: dict(r)
+        for r in conn.execute(
+            """
+            SELECT a.attacker_tag, a.stars, a.new_stars,
+                   d.name AS defender, d.map_position AS defender_position,
+                   d.townhall_level AS defender_th
+            FROM attack_values a
+            JOIN war_members d
+              ON d.war_id = a.war_id AND d.player_tag = a.defender_tag
+             AND d.side = 'opponent'
+            WHERE a.war_id = ? AND a.attacker_side = 'clan'
+              AND a.order_num = (
+                  SELECT MIN(order_num) FROM attacks
+                  WHERE war_id = a.war_id AND attacker_tag = a.attacker_tag
+              )
+            """,
+            (war_id,),
+        )
+    }
+
+    rows: list[dict[str, Any]] = []
+    for plan in recommend_assignments(conn, war_id):
+        used = usage.get(plan["attacker_tag"], {})
+        hit = actual.get(plan["attacker_tag"])
+        if hit:
+            plan = {
+                **plan,
+                "defender": hit["defender"],
+                "defender_position": hit["defender_position"],
+                "defender_th": hit["defender_th"],
+                "th_diff": plan["attacker_th"] - hit["defender_th"],
+                "went_off_plan": hit["defender"] != plan["defender"],
+                "planned_defender": plan["defender"],
+                # Stars from THIS attack, not the member's war total -- the row
+                # shows one pairing, so it must show that pairing's result.
+                "first_stars": hit["stars"],
+                "first_new_stars": hit["new_stars"],
+            }
+        target = defence.get(plan["defender"], {})
+        rows.append(
+            {
+                **plan,
+                "attacks_used": used.get("attacks_used", 0),
+                "attacks_available": used.get("attacks_available", 2),
+                "attacks_left": used.get("attacks_missed", 2),
+                "stars_scored": used.get("stars", 0),
+                "target_stars": target.get("best_stars", 0),
+                "target_state": target.get("state", "untouched"),
+                "attempts": target.get("attempts", 0),
+                "target_advice": target.get("advice", ""),
+                "armies": army_options(conn, plan["attacker_tag"], plan["attacker_th"]),
+                "outmatched": plan["th_diff"] <= -2,
+                "is_me": plan["attacker_tag"] == player_tag,
+            }
+        )
+
+    mine = next((r for r in rows if r["is_me"]), None)
+    return rows, mine

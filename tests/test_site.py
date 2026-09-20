@@ -156,3 +156,159 @@ def test_builds_cleanly_with_an_empty_database(tmp_path) -> None:
     html = (out / "index.html").read_text(encoding="utf-8")
     assert "No war in progress" in html
     assert "not endorsed by Supercell" in html
+
+
+# --- War Room primitives -------------------------------------------------
+
+
+def test_star_row_fills_only_what_was_earned() -> None:
+    from coc_telemetry.site import star_row
+
+    svg = star_row(2)
+    assert svg.count('class="on"') == 2
+    assert svg.count('class="off"') == 1
+    assert 'aria-label="2 of 3 stars"' in svg
+
+
+def test_star_row_clamps_nonsense_values() -> None:
+    from coc_telemetry.site import star_row
+
+    assert star_row(None).count('class="on"') == 0
+    assert star_row(-4).count('class="on"') == 0
+    assert star_row(99).count('class="on"') == 3
+
+
+def test_star_row_is_self_contained_svg() -> None:
+    from coc_telemetry.site import star_row
+
+    svg = star_row(1)
+    assert svg.startswith("<svg") and svg.endswith("</svg>")
+    assert svg.count("<g") == svg.count("</g>")
+
+
+def test_phase_is_derived_from_war_state(tmp_path, fixture_json) -> None:
+    """Preparation, battle day and post-war are different products, so the page
+    needs to know which one it is rendering."""
+    from coc_telemetry.site import gather
+
+    for name, expected in [
+        ("war_preparation", "prep"),
+        ("war_in_war_11_attacks", "battle"),
+        ("war_ended", "ended"),
+    ]:
+        conn = connect(tmp_path / f"{name}.db")
+        ingest_war(conn, fixture_json(name), at(12), OUR_CLAN)
+        assert gather(conn, "#202VL9GR")["phase"] == expected
+        conn.close()
+
+
+def test_phase_is_idle_with_no_war(tmp_path) -> None:
+    from coc_telemetry.site import gather
+
+    conn = connect(tmp_path / "empty.db")
+    ctx = gather(conn, "#202VL9GR")
+    assert ctx["phase"] == "idle"
+    assert ctx["duels"] == []
+    assert ctx["my_duel"] is None
+    conn.close()
+
+
+def test_duels_merge_roster_plan_and_defence(tmp_path, fixture_json) -> None:
+    """The map replaced three separate sections; each row must carry all three."""
+    from coc_telemetry.site import gather
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    duels = gather(conn, "#202VL9GR")["duels"]
+    conn.close()
+
+    assert duels
+    for d in duels:
+        for key in (
+            "attacker",
+            "defender",
+            "attacks_used",
+            "attacks_available",
+            "target_stars",
+            "target_state",
+            "expected_stars",
+            "armies",
+        ):
+            assert key in d, f"{key} missing from duel row"
+        assert 0 <= d["target_stars"] <= 3
+        assert d["attacks_used"] <= d["attacks_available"]
+
+
+def test_my_duel_is_picked_out_for_the_orders_card(tmp_path, fixture_json) -> None:
+    from coc_telemetry.site import gather
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    tag = conn.execute(
+        "SELECT player_tag FROM war_members WHERE war_id=(SELECT war_id FROM wars) "
+        "AND side='clan' LIMIT 1"
+    ).fetchone()[0]
+    ctx = gather(conn, tag)
+    conn.close()
+
+    assert ctx["my_duel"] is not None
+    assert ctx["my_duel"]["attacker_tag"] == tag
+    assert ctx["my_duel"]["is_me"] is True
+
+
+def test_both_pages_lead_with_orders_during_a_war(tmp_path, fixture_json) -> None:
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_preparation"), at(10), OUR_CLAN)
+    tag = conn.execute("SELECT player_tag FROM war_members WHERE side='clan' LIMIT 1").fetchone()[0]
+    out = tmp_path / "site"
+    build_site(conn, out, templates=TEMPLATES, clan_name="Sunbury Massive", player_tag=tag)
+    conn.close()
+
+    for page in ["index.html", "me/index.html"]:
+        assert "Your orders" in (out / page).read_text(encoding="utf-8")
+
+
+def test_map_shows_who_was_actually_attacked_not_who_was_planned(tmp_path, fixture_json) -> None:
+    """An assignment is a plan. Once someone attacks, showing their stars beside a
+    base they never touched is simply wrong."""
+    from coc_telemetry.site import gather
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    duels = gather(conn, "#202VL9GR")["duels"]
+
+    for d in duels:
+        if "first_stars" not in d:
+            continue  # member did not attack; the planned target still stands
+        real = conn.execute(
+            """
+            SELECT d.name FROM attacks a
+            JOIN war_members d ON d.war_id = a.war_id AND d.player_tag = a.defender_tag
+                              AND d.side = 'opponent'
+            WHERE a.war_id = a.war_id AND a.attacker_tag = ?
+            ORDER BY a.order_num LIMIT 1
+            """,
+            (d["attacker_tag"],),
+        ).fetchone()
+        assert d["defender"] == real["name"], (
+            f"{d['attacker']} is shown attacking {d['defender']} but really hit {real['name']}"
+        )
+        # The stars on the row must belong to the attack the row depicts.
+        assert d["first_stars"] <= d["target_stars"], (
+            "an attack cannot score more than the base's best result"
+        )
+    conn.close()
+
+
+def test_off_plan_attacks_are_labelled(tmp_path, fixture_json) -> None:
+    from coc_telemetry.site import gather
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    duels = gather(conn, "#202VL9GR")["duels"]
+    conn.close()
+
+    off = [d for d in duels if d.get("went_off_plan")]
+    assert off, "the fixture has members who attacked off their assignment"
+    for d in off:
+        assert d["planned_defender"] != d["defender"]
