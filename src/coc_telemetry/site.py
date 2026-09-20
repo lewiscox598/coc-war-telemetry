@@ -313,6 +313,19 @@ def build_site(
     env = _environment(templates)
     context = gather(conn, player_tag)
 
+    # Clan badges: the API carries both sides' badgeUrls on the war payload.
+    # Read from the archive so a site build still needs no token.
+    badges: dict[str, str] = {}
+    if store is not None:
+        latest_war = store.latest_path("currentwar")
+        if latest_war is not None:
+            payload = store.read(latest_war).data
+            for key, side in (("us", "clan"), ("them", "opponent")):
+                urls = (payload.get(side) or {}).get("badgeUrls") or {}
+                if urls.get("medium"):
+                    badges[key] = urls["medium"]
+    context["badges"] = badges
+
     captures = store.paths() if store else []
     first_capture = "--"
     if captures:

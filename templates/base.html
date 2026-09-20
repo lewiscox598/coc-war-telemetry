@@ -176,6 +176,62 @@
   slider.addEventListener("pointerdown", stop);
   slider.addEventListener("keydown", stop);
 
+  /* --- Base inspector -----------------------------------------------
+     Every base is a button; selecting one reports every attack on it, and
+     every attack its owner made, at the currently scrubbed point in the war. */
+  var panel = document.getElementById("base-detail");
+  var selected = null;
+  var nameOf = {};
+  W.roster.forEach(function (m) { nameOf[m.tag] = m.name; });
+
+  function describe(tag) {
+    var t = +slider.value;
+    var received = [], made = [];
+    W.attacks.forEach(function (a) {
+      if (a.n > t) return;
+      if (a.on === tag) received.push(a);
+      if (a.by === tag) made.push(a);
+    });
+    function line(a, verb, other) {
+      return "<li><span class=\"n\">#" + a.n + "</span> " + verb + " <b>" +
+             (nameOf[other] || "unknown") + "</b> · " + a.s + "★ " + a.d + "%</li>";
+    }
+    var html = "<h3>" + (nameOf[tag] || "Base") + "</h3>";
+    html += made.length
+      ? "<p class=\"cap\">Attacks made</p><ul>" + made.map(function (a) { return line(a, "hit", a.on); }).join("") + "</ul>"
+      : "<p class=\"cap none\">No attacks made yet.</p>";
+    html += received.length
+      ? "<p class=\"cap\">Attacks received</p><ul>" + received.map(function (a) { return line(a, "hit by", a.by); }).join("") + "</ul>"
+      : "<p class=\"cap none\">Never attacked.</p>";
+    return html;
+  }
+
+  function select(tile) {
+    if (selected === tile) {          // tapping the open base closes it
+      selected.classList.remove("sel");
+      selected.setAttribute("aria-expanded", "false");
+      selected = null; panel.hidden = true; return;
+    }
+    if (selected) {
+      selected.classList.remove("sel");
+      selected.setAttribute("aria-expanded", "false");
+    }
+    selected = tile;
+    tile.classList.add("sel");
+    tile.setAttribute("aria-expanded", "true");
+    panel.innerHTML = describe(tile.dataset.tag);
+    panel.hidden = false;
+  }
+
+  document.querySelectorAll(".tile[data-tag]").forEach(function (tile) {
+    tile.addEventListener("click", function () { select(tile); });
+  });
+
+  // Keep an open inspector truthful while the war is scrubbed.
+  slider.addEventListener("input", function () {
+    if (selected) panel.innerHTML = describe(selected.dataset.tag);
+  });
+
   render(+slider.value, false);
 })();
 </script>

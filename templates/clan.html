@@ -1,26 +1,34 @@
 {% extends "base.html" %}
 
-{% macro tile(tag, pos, name, th, mine=false, over=0) %}
-<div class="tile {{ 'mine' if mine }}" data-tag="{{ tag }}">
+{% macro tile(tag, pos, name, th, mine=false, over=0, side='clan') %}
+<button type="button" class="tile {{ 'mine' if mine }}" data-tag="{{ tag }}"
+        data-name="{{ name }}" data-side="{{ side }}" aria-expanded="false">
   <span class="pos">{{ pos }}</span>
   <span class="arc"><span></span><span></span><span></span></span>
   <span class="nm">{{ name }}</span>
   <span class="th">TH{{ th }}{% if over %} <span class="over">+{{ over }}</span>{% endif %}</span>
   <span class="pct"><span class="pct-val">0%</span></span>
-</div>
+</button>
 {% endmacro %}
 
 {% block content %}
 
-<div class="board">
+<div class="frame board">
+ <div class="inner">
   <div class="sides">
-    <div class="side-name">{{ clan_name }}</div>
+    <div class="side-name">
+      {% if badges.us %}<img class="badge" src="{{ badges.us }}" alt="" width="64" height="64" loading="eager">{% endif %}
+      <span>{{ clan_name }}</span>
+    </div>
     <div class="score">
       <b id="score-us">{{ war.clan_stars if war else '–' }}</b>
       <i>–</i>
       <b class="them" id="score-them">{{ war.opponent_stars if war else '–' }}</b>
     </div>
-    <div class="side-name them">{{ war.opponent_name if war else 'no war' }}</div>
+    <div class="side-name them">
+      {% if badges.them %}<img class="badge" src="{{ badges.them }}" alt="" width="64" height="64" loading="eager">{% endif %}
+      <span>{{ war.opponent_name if war else 'no war' }}</span>
+    </div>
   </div>
   <p class="state">
     {% if not war %}
@@ -37,10 +45,12 @@
       · {{ war.end_time | when }}
     {% endif %}
   </p>
+ </div>
 </div>
 
 {% if feed %}
-<div class="replay">
+<div class="frame replay">
+ <div class="inner">
   <div class="head">
     <span class="label">Replay</span>
     <span class="caption" id="caption">Attack {{ feed | length }} of {{ feed | length }}</span>
@@ -50,6 +60,7 @@
     <input id="scrub" type="range" min="0" max="{{ feed | length }}" value="{{ feed | length }}"
            step="1" aria-label="Scrub through the war, attack by attack">
   </div>
+ </div>
 </div>
 {% endif %}
 
@@ -67,17 +78,21 @@
 
 <section class="panel panel-war">
   {% if map_rows %}
+  <div class="field">
   <div class="map">
     {% for r in map_rows %}
     <div class="duel">
-      {% if r.us %}{{ tile(r.us.player_tag, r.position, r.us.name, r.us.townhall_level, mine=r.is_me) }}
+      {% if r.us %}{{ tile(r.us.player_tag, r.position, r.us.name, r.us.townhall_level, mine=r.is_me, side='clan') }}
       {% else %}<div class="tile"><span class="nm dim">—</span></div>{% endif %}
       <div class="vs">vs</div>
-      {% if r.them %}{{ tile(r.them.player_tag, r.position, r.them.name, r.them.townhall_level, over=r.over) }}
+      {% if r.them %}{{ tile(r.them.player_tag, r.position, r.them.name, r.them.townhall_level, over=r.over, side='opponent') }}
       {% else %}<div class="tile"><span class="nm dim">—</span></div>{% endif %}
     </div>
     {% endfor %}
   </div>
+  </div>
+  <div id="base-detail" class="base-detail" hidden></div>
+  <p class="hint">Tap any base for every attack on it.</p>
 
   <h2>Orders in detail</h2>
   {% for d in duels %}

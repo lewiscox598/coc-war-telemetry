@@ -1,43 +1,70 @@
 /* SUNBURY MASSIVE — war room
-   Hand-written, no framework. Clash-flavoured: slate stone, beaten gold,
-   bevelled plaques, star arcs. Display face is Lilita One; body is Nunito.
+   Hand-written CSS, no framework, no third-party art.
 
-   Colour discipline still holds: gold is identity and stars, never a data
-   series. Chart series keep validated categorical steps. Every text token
-   clears AA on the stone surface (measured in the commit message). */
+   Clash's look is made of MATERIALS, not accent colours: wood plank grain,
+   stone slab, riveted gold frames, glyphs with a heavy dark stroke, buttons
+   that are inflated with a hard bottom edge, bases sitting on grass. All of it
+   is drawn here with gradients, strokes and pseudo-elements — no Supercell
+   assets are used or imitated, and the footer declares the site unofficial.
 
-@font-face { font-display: swap; }
+   Contrast is still measured, not eyeballed. Chart series keep the documented
+   dark steps, validated against the slab surface. */
 
 :root {
-  --stone-950: #0d1016;
-  --stone-900: #141922;
-  --stone-850: #1a202b;
-  --stone-800: #212836;
-  --stone-700: #2c3545;
-  --stone-600: #3d4759;
-  --edge-hi:   rgba(255,255,255,.07);
-  --edge-lo:   rgba(0,0,0,.45);
+  /* --- materials --- */
+  --wood-dark:  #43280f;
+  --wood:       #6b4423;
+  --wood-light: #8a5a2e;
+  --stone-dark: #2f3a48;
+  --stone:      #46535f;
+  --stone-light:#5d6b78;
+  --grass-dark: #27541f;
+  --grass:      #37742b;
+  --grass-light:#4a8f38;
 
+  --gold-hi:   #ffeaa6;
   --gold:      #ffc23c;
-  --gold-2:    #e8a325;
-  --gold-deep: #a9700f;
-  --gold-dark: #5e3d06;
+  --gold-mid:  #e5a021;
+  --gold-deep: #a86f11;
+  --gold-dark: #5d3c05;
 
-  --ink:   #f4efe3;
-  --ink-2: #b3bccb;
-  --ink-3: #8b95a6;
+  --night:  #16110a;
+  --outline:#2b1a05;
 
-  --win:  #5dd47f;
-  --lose: #ff6b6b;
-  --series-1: #4a9eff;
-  --series-2: #ff8a4c;
+  --ink:   #fff7e6;
+  --ink-2: #dcc9a6;
+  
+  --ink-3: #ab9a7c;
 
-  /* One star path, used as a mask so a single element can be lit or dark. */
+  --win:  #6be07f;
+  --lose: #ff7a6b;
+  --series-1: #3987e5;
+  --series-2: #d95926;
+
+  /* Plank grain: fine vertical striations over a warm brown base. */
+  --plank:
+    repeating-linear-gradient(90deg,
+      rgba(0,0,0,.10) 0 1px, rgba(255,255,255,.03) 1px 3px, transparent 3px 9px),
+    linear-gradient(180deg, var(--wood-light) 0%, var(--wood) 55%, var(--wood-dark) 100%);
+
+  /* Slab: mottled cool grey, lit from above. */
+  --slab:
+    radial-gradient(ellipse 60% 40% at 22% 18%, rgba(255,255,255,.07), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 78% 72%, rgba(0,0,0,.22), transparent 60%),
+    radial-gradient(ellipse 30% 20% at 60% 30%, rgba(0,0,0,.14), transparent 60%),
+    linear-gradient(180deg, var(--stone-light) 0%, var(--stone) 45%, var(--stone-dark) 100%);
+
+  /* Rivets: four brass studs, one per corner. */
+  --rivets:
+    radial-gradient(circle 4px at 9px 9px,  #f6d47a 0 40%, var(--gold-deep) 55%, transparent 60%),
+    radial-gradient(circle 4px at calc(100% - 9px) 9px, #f6d47a 0 40%, var(--gold-deep) 55%, transparent 60%),
+    radial-gradient(circle 4px at 9px calc(100% - 9px), #f6d47a 0 40%, var(--gold-deep) 55%, transparent 60%),
+    radial-gradient(circle 4px at calc(100% - 9px) calc(100% - 9px), #f6d47a 0 40%, var(--gold-deep) 55%, transparent 60%);
+
   --star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2.2l3.1 6.3 6.9 1-5 4.9 1.2 6.9L12 18l-6.2 3.3 1.2-6.9-5-4.9 6.9-1z'/%3E%3C/svg%3E");
 
-  --gutter: 16px;
-  --measure: 900px;
-  --r: 10px;
+  --gutter: 14px;
+  --measure: 960px;
 }
 
 * { box-sizing: border-box; }
@@ -45,12 +72,12 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  padding: 0 var(--gutter) 60px;
+  padding: 0 var(--gutter) 56px;
   color: var(--ink);
-  font: 400 16px/1.5 "Nunito", system-ui, sans-serif;
+  font: 700 16px/1.5 "Nunito", system-ui, sans-serif;
   background:
-    radial-gradient(900px 420px at 50% -80px, #1e2836 0%, transparent 72%),
-    linear-gradient(180deg, var(--stone-900) 0%, var(--stone-950) 100%);
+    radial-gradient(1000px 500px at 50% -120px, #3c5a7a 0%, transparent 70%),
+    linear-gradient(180deg, #1d2c3d 0%, #121a26 60%, #0d1320 100%);
   background-attachment: fixed;
   min-height: 100vh;
   overflow-x: hidden;
@@ -58,309 +85,351 @@ body {
 
 .wrap { width: 100%; max-width: var(--measure); margin-inline: auto; }
 
-h1, h2, .display, .score b, .tile .pos, .btn, .tabs label {
-  font-family: "Lilita One", "Nunito", system-ui, sans-serif;
-  font-weight: 400; letter-spacing: 0.02em;
+/* Every heading glyph carries a heavy dark stroke, the way the game sets type. */
+h1, h2, .score b, .tile .nm, .btn, .tabs label, .board .side-name, .rows .nm {
+  font-family: "Luckiest Guy", "Nunito", system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: .03em;
+  -webkit-text-stroke: 3px var(--outline);
+  paint-order: stroke fill;
 }
 
-/* --- Banner ----------------------------------------------------------- */
+/* --- Ribbon banner ---------------------------------------------------- */
 
 .banner {
+  position: relative; margin: 18px 0 16px; padding: 0;
   display: flex; align-items: center; justify-content: space-between;
-  gap: 14px; padding: 18px 0 14px; flex-wrap: wrap;
+  gap: 12px; flex-wrap: wrap;
+}
+.banner .ribbon {
+  position: relative; padding: 11px 30px;
+  background: linear-gradient(180deg, var(--gold-hi) 0%, var(--gold) 38%, var(--gold-mid) 62%, var(--gold-deep) 100%);
+  border: 3px solid var(--gold-dark); border-radius: 6px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 14px 50%);
+  box-shadow: 0 5px 0 rgba(0,0,0,.42), inset 0 2px 0 rgba(255,255,255,.55);
 }
 .banner h1 {
-  margin: 0; font-size: clamp(1.1rem, 0.95rem + 0.8vw, 1.5rem);
-  color: var(--gold); text-shadow: 0 2px 0 var(--gold-dark), 0 3px 6px rgba(0,0,0,.5);
-  letter-spacing: 0.04em;
+  margin: 0; font-size: clamp(1.15rem, 1rem + 1vw, 1.75rem);
+  color: var(--ink); -webkit-text-stroke-width: 3.5px;
+  text-shadow: 0 3px 0 rgba(0,0,0,.35);
 }
 .banner nav { display: flex; gap: 8px; }
 .banner nav a {
-  text-decoration: none; font-size: 0.82rem; font-weight: 700;
-  padding: 7px 14px; border-radius: 999px; color: var(--ink-2);
-  background: linear-gradient(180deg, var(--stone-700), var(--stone-800));
-  border: 1px solid var(--stone-600);
-  box-shadow: inset 0 1px 0 var(--edge-hi), 0 2px 0 var(--edge-lo);
+  text-decoration: none; font-size: .8rem; font-weight: 800; color: var(--ink-2);
+  padding: 8px 15px; border-radius: 9px;
+  background: var(--plank); border: 2px solid var(--wood-dark);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.14), 0 4px 0 rgba(0,0,0,.45);
 }
-.banner nav a:hover { color: var(--ink); }
+.banner nav a:hover { filter: brightness(1.12); }
 .banner nav a.on {
-  color: #3a2600; background: linear-gradient(180deg, var(--gold), var(--gold-2));
-  border-color: var(--gold-deep); box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 2px 0 var(--gold-dark);
+  color: var(--outline);
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 45%, var(--gold-mid));
+  border-color: var(--gold-dark);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 4px 0 var(--gold-dark);
+}
+
+/* --- Framed panels: stone slab inside a riveted gold frame ------------ */
+
+.frame {
+  position: relative; padding: 4px; border-radius: 16px;
+  background:
+    var(--rivets),
+    linear-gradient(180deg, var(--gold) 0%, var(--gold-deep) 50%, var(--gold-dark) 100%);
+  background-repeat: no-repeat;
+  box-shadow: 0 7px 0 rgba(0,0,0,.45), 0 14px 26px rgba(0,0,0,.5);
+  border: 2px solid var(--gold-dark);
+}
+.frame > .inner {
+  border-radius: 11px; padding: 18px 16px;
+  background: var(--slab);
+  border: 2px solid rgba(0,0,0,.45);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.10), inset 0 -8px 18px rgba(0,0,0,.34);
 }
 
 /* --- Scoreboard ------------------------------------------------------- */
 
-.board {
-  background: linear-gradient(180deg, var(--stone-800), var(--stone-850));
-  border: 1px solid var(--stone-600); border-radius: 16px;
-  box-shadow: inset 0 1px 0 var(--edge-hi), 0 6px 0 rgba(0,0,0,.35), 0 12px 28px rgba(0,0,0,.45);
-  padding: 20px 16px 18px; text-align: center;
-}
-.board .sides {
-  display: grid; grid-template-columns: 1fr auto 1fr;
-  align-items: center; gap: 10px;
-}
+.board .sides { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 10px; }
 .board .side-name {
-  font-weight: 800; font-size: clamp(.82rem, .7rem + .5vw, 1.05rem);
-  color: var(--ink-2); line-height: 1.2; min-width: 0;
+  font-size: clamp(.78rem, .66rem + .55vw, 1.05rem); color: var(--ink);
+  -webkit-text-stroke-width: 2.5px; line-height: 1.15; min-width: 0;
 }
-.board .side-name.them { color: var(--ink-3); }
-.score { display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+.board .side-name.them { color: var(--ink-2); }
+
+.score { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .score b {
-  font-size: clamp(2.6rem, 2rem + 4vw, 4.4rem); line-height: .85;
-  color: var(--gold); text-shadow: 0 3px 0 var(--gold-dark), 0 5px 12px rgba(0,0,0,.6);
-  font-variant-numeric: proportional-nums; min-width: 1.2ch;
+  font-size: clamp(2.6rem, 2rem + 4.2vw, 4.6rem); line-height: .82;
+  color: var(--gold); -webkit-text-stroke-width: 5px;
+  text-shadow: 0 5px 0 rgba(0,0,0,.5), 0 8px 14px rgba(0,0,0,.45);
+  min-width: 1.1ch; text-align: center;
 }
-.score b.them { color: var(--ink-2); text-shadow: 0 3px 0 #1a1f29; }
-.score i { font-style: normal; color: var(--stone-600); font-size: 1.6rem; }
+.score b.them { color: #cfd8e0; }
+.score i { font-style: normal; color: rgba(0,0,0,.5); font-size: 1.5rem; font-weight: 900; }
 
-.state { margin: 14px 0 0; font-size: .88rem; color: var(--ink-3); font-weight: 600; }
+.state { margin: 14px 0 0; text-align: center; font-size: .85rem; color: var(--ink-2); font-weight: 800; }
 .state strong { color: var(--ink); }
-.state .live {
-  color: var(--win); text-transform: uppercase; letter-spacing: .12em;
-  font-size: .72rem; font-weight: 800;
-}
-.state .live::before { content: "● "; animation: blink 1.6s ease-in-out infinite; }
-@keyframes blink { 0%,100% { opacity: 1 } 50% { opacity: .2 } }
+.state .live { color: var(--win); text-transform: uppercase; letter-spacing: .1em; font-size: .72rem; }
+.state .live::before { content: "● "; animation: blink 1.5s ease-in-out infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
 
-/* --- Replay ----------------------------------------------------------- */
-
-.replay {
-  margin-top: 14px; padding: 14px 16px;
-  background: linear-gradient(180deg, var(--stone-850), var(--stone-900));
-  border: 1px solid var(--stone-700); border-radius: 14px;
-  box-shadow: inset 0 1px 0 var(--edge-hi);
-}
-.replay .head {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
-}
-.replay .label {
-  font-size: .68rem; font-weight: 800; letter-spacing: .16em;
-  text-transform: uppercase; color: var(--gold-2);
-}
-.replay .caption { font-size: .82rem; color: var(--ink-2); margin-left: auto; text-align: right; min-width: 0; }
-.replay .caption b { color: var(--ink); }
-
-.replay .controls { display: flex; align-items: center; gap: 12px; }
+/* --- Inflated buttons ------------------------------------------------- */
 
 .btn {
-  flex: none; cursor: pointer; border: 1px solid var(--gold-deep);
-  background: linear-gradient(180deg, var(--gold), var(--gold-2));
-  color: #3a2600; font-size: .95rem; padding: 8px 16px; border-radius: 9px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 3px 0 var(--gold-dark);
-  transition: transform .06s, box-shadow .06s;
+  flex: none; cursor: pointer; font-size: 1rem; padding: 10px 20px;
+  color: var(--ink); -webkit-text-stroke-width: 3px;
+  background: linear-gradient(180deg, #8fe06a 0%, #58bf3c 45%, #3e9a28 60%, #2f7a1e 100%);
+  border: 3px solid #1e4f12; border-radius: 12px;
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.45), 0 5px 0 #1e4f12, 0 9px 12px rgba(0,0,0,.42);
+  transition: transform .07s, box-shadow .07s;
 }
-.btn:hover { filter: brightness(1.06); }
-.btn:active { transform: translateY(2px); box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 1px 0 var(--gold-dark); }
-.btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.btn:hover { filter: brightness(1.08); }
+.btn:active {
+  transform: translateY(4px);
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.35), 0 1px 0 #1e4f12, 0 3px 6px rgba(0,0,0,.4);
+}
+.btn:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+/* --- Replay rail ------------------------------------------------------ */
+
+.replay { margin-top: 14px; }
+.replay .head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.replay .label {
+  font-size: .68rem; font-weight: 900; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--gold-hi); text-shadow: 0 2px 0 rgba(0,0,0,.5);
+}
+.replay .caption { font-size: .8rem; color: var(--ink-2); margin-left: auto; text-align: right; min-width: 0; }
+.replay .caption b { color: var(--gold); }
+.replay .controls { display: flex; align-items: center; gap: 14px; }
 
 input[type=range] {
   -webkit-appearance: none; appearance: none; flex: 1 1 auto; min-width: 0;
-  height: 22px; background: transparent; cursor: pointer;
+  height: 26px; background: transparent; cursor: pointer;
 }
 input[type=range]::-webkit-slider-runnable-track {
-  height: 8px; border-radius: 5px;
-  background: linear-gradient(90deg, var(--gold-2) var(--pct,0%), var(--stone-700) var(--pct,0%));
-  border: 1px solid var(--stone-600); box-shadow: inset 0 1px 2px rgba(0,0,0,.5);
+  height: 14px; border-radius: 8px;
+  background: linear-gradient(90deg, var(--gold) 0 var(--pct,0%), rgba(0,0,0,.42) var(--pct,0%) 100%);
+  border: 3px solid var(--outline);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.55);
 }
 input[type=range]::-moz-range-track {
-  height: 8px; border-radius: 5px;
-  background: linear-gradient(90deg, var(--gold-2) var(--pct,0%), var(--stone-700) var(--pct,0%));
-  border: 1px solid var(--stone-600);
+  height: 14px; border-radius: 8px;
+  background: linear-gradient(90deg, var(--gold) 0 var(--pct,0%), rgba(0,0,0,.42) var(--pct,0%) 100%);
+  border: 3px solid var(--outline);
 }
 input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none; margin-top: -7px;
-  width: 20px; height: 20px; border-radius: 50%;
-  background: linear-gradient(180deg, #fff 0%, var(--gold) 55%, var(--gold-2) 100%);
-  border: 1px solid var(--gold-deep); box-shadow: 0 2px 4px rgba(0,0,0,.6);
+  -webkit-appearance: none; appearance: none; margin-top: -9px;
+  width: 26px; height: 26px; border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #fff8dd 0 18%, var(--gold) 45%, var(--gold-mid) 72%, var(--gold-deep) 100%);
+  border: 3px solid var(--outline);
+  box-shadow: 0 3px 0 rgba(0,0,0,.45);
 }
 input[type=range]::-moz-range-thumb {
-  width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--gold-deep);
-  background: linear-gradient(180deg, #fff 0%, var(--gold) 55%, var(--gold-2) 100%);
+  width: 26px; height: 26px; border-radius: 50%; border: 3px solid var(--outline);
+  background: radial-gradient(circle at 36% 30%, #fff8dd 0 18%, var(--gold) 45%, var(--gold-mid) 72%, var(--gold-deep) 100%);
 }
-input[type=range]:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+input[type=range]:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
 
-/* --- Section titles --------------------------------------------------- */
+/* --- Section headings: small wooden signs ----------------------------- */
 
 h2 {
-  font-size: .82rem; letter-spacing: .18em; text-transform: uppercase;
-  color: var(--ink-3); margin: 30px 0 12px;
-  display: flex; align-items: center; gap: 12px;
+  display: inline-block; margin: 26px 0 12px; padding: 6px 16px;
+  font-size: .8rem; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--gold-hi); -webkit-text-stroke-width: 2.5px;
+  background: var(--plank); border: 2px solid var(--wood-dark); border-radius: 8px;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.13), 0 4px 0 rgba(0,0,0,.42);
 }
-h2::after { content: ""; flex: 1; height: 1px; background: var(--stone-700); }
 
-/* --- Orders ----------------------------------------------------------- */
+/* --- Orders scroll ---------------------------------------------------- */
 
 .orders {
-  display: grid; grid-template-columns: max-content 1fr; gap: 7px 16px;
-  margin: 14px 0 0; padding: 16px;
-  background: linear-gradient(180deg, rgba(255,194,60,.09), rgba(255,194,60,.02));
-  border: 1px solid var(--gold-dark); border-radius: 14px;
-  box-shadow: inset 0 1px 0 rgba(255,194,60,.16);
+  display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px;
+  margin: 14px 0 0; padding: 16px 18px; border-radius: 12px;
+  background:
+    linear-gradient(180deg, rgba(255,240,200,.97), rgba(240,218,166,.97));
+  border: 3px solid var(--wood-dark);
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.5), 0 6px 0 rgba(0,0,0,.4);
+  color: #3a2a12;
 }
 .orders dt {
-  font-size: .64rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--gold-2); padding-top: 4px;
+  font-size: .64rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  color: #8a5a15; padding-top: 4px;
 }
-.orders dd { margin: 0; font-weight: 700; }
-.orders .muted { color: var(--ink-3); font-weight: 400; }
-.orders .warn { color: var(--lose); }
+.orders dd { margin: 0; font-weight: 800; }
+.orders .muted { color: #6f5a34; font-weight: 700; }
+.orders .warn { color: #a8261b; }
+.orders svg.stars .off { stroke: #b9a271; }
 
-/* --- The map: base plaques with star arcs ----------------------------- */
+/* --- The battlefield -------------------------------------------------- */
 
-.map { display: grid; gap: 20px; }
-
-.duel {
-  display: grid; grid-template-columns: 1fr 26px 1fr; gap: 8px; align-items: stretch;
+.field {
+  position: relative; margin-top: 4px; padding: 20px 12px;
+  border-radius: 14px; overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 0%, rgba(255,255,255,.10), transparent 60%),
+    repeating-linear-gradient(102deg, rgba(0,0,0,.05) 0 3px, transparent 3px 11px),
+    linear-gradient(180deg, var(--grass-light) 0%, var(--grass) 45%, var(--grass-dark) 100%);
+  border: 3px solid #1d3d16;
+  box-shadow: inset 0 3px 0 rgba(255,255,255,.14), inset 0 -10px 22px rgba(0,0,0,.28);
 }
+/* Rope down the middle, dividing the two sides of the map. */
+.field::before {
+  content: ""; position: absolute; top: 10px; bottom: 10px; left: 50%;
+  width: 10px; margin-left: -5px; border-radius: 5px;
+  background:
+    repeating-linear-gradient(115deg, #caa06a 0 4px, #8a6335 4px 8px);
+  box-shadow: 0 0 0 2px rgba(0,0,0,.35), 0 2px 5px rgba(0,0,0,.4);
+  opacity: .85;
+}
+
+.map { display: grid; gap: 22px; position: relative; z-index: 1; }
+.duel { display: grid; grid-template-columns: 1fr 34px 1fr; gap: 6px; align-items: stretch; }
 .duel .vs {
-  align-self: center; text-align: center; color: var(--stone-600);
-  font-size: .8rem; font-weight: 800;
+  align-self: center; text-align: center; font-size: .7rem; font-weight: 900;
+  color: rgba(255,255,255,.75); text-shadow: 0 2px 0 rgba(0,0,0,.55);
 }
+
+/* --- Base plaque: stone slab on a wooden post ------------------------- */
 
 .tile {
-  position: relative; padding: 26px 10px 10px; text-align: center;
-  background: linear-gradient(180deg, var(--stone-800), var(--stone-850));
-  border: 1px solid var(--stone-600); border-radius: var(--r);
-  box-shadow: inset 0 1px 0 var(--edge-hi), 0 3px 0 rgba(0,0,0,.4);
-  min-width: 0;
+  position: relative; padding: 20px 8px 10px; text-align: center; min-width: 0;
+  border-radius: 12px;
+  background: var(--slab);
+  border: 3px solid #1c232c;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.12), inset 0 -8px 16px rgba(0,0,0,.35), 0 5px 0 rgba(0,0,0,.42);
 }
-.tile.mine { border-color: var(--gold-deep); box-shadow: inset 0 1px 0 rgba(255,194,60,.22), 0 3px 0 var(--gold-dark); }
-.tile.cleared { border-color: #2f6b3f; }
+.tile.mine { border-color: var(--gold-dark); box-shadow: inset 0 2px 0 rgba(255,220,140,.3), 0 5px 0 var(--gold-dark); }
+.tile.cleared { border-color: #1d5b28; }
 
 .tile .pos {
-  position: absolute; top: -1px; left: -1px;
-  font-size: .72rem; color: var(--ink-3);
-  background: var(--stone-700); border-radius: var(--r) 0 8px 0;
-  padding: 2px 8px 3px; border-right: 1px solid var(--stone-600); border-bottom: 1px solid var(--stone-600);
+  position: absolute; top: -9px; left: -9px; width: 25px; height: 25px; line-height: 21px;
+  font-size: .76rem; font-weight: 900; color: var(--outline);
+  background: radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 55%, var(--gold-mid));
+  border: 3px solid var(--outline); border-radius: 50%;
+  box-shadow: 0 2px 0 rgba(0,0,0,.4);
 }
 .tile .nm {
-  font-weight: 800; font-size: .9rem; line-height: 1.15;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  display: block; font-size: .88rem; color: var(--ink); -webkit-text-stroke-width: 2.5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.25;
 }
 .tile .th {
-  display: inline-block; margin-top: 5px; font-size: .68rem; font-weight: 800;
-  letter-spacing: .06em; color: var(--ink-3);
-  background: var(--stone-900); border: 1px solid var(--stone-700);
-  padding: 2px 8px; border-radius: 6px;
+  display: inline-block; margin-top: 6px; padding: 2px 9px;
+  font-size: .66rem; font-weight: 900; letter-spacing: .05em; color: var(--ink-2);
+  background: rgba(0,0,0,.42); border: 2px solid rgba(0,0,0,.5); border-radius: 7px;
 }
+.tile .over { color: var(--lose); }
+.tile .pct { display: block; margin-top: 5px; font-size: .7rem; font-weight: 800; color: var(--ink-2); }
 
-/* Star arc: the middle star rides higher, as the game draws it. */
+/* Star arc — middle star rides high, as the game draws it. */
 .arc {
-  position: absolute; top: -11px; left: 50%; transform: translateX(-50%);
-  display: flex; align-items: flex-end; gap: 2px; pointer-events: none;
+  position: absolute; top: -14px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: flex-end; gap: 1px; pointer-events: none; z-index: 2;
 }
 .arc span {
-  width: 18px; height: 18px; display: block;
-  background: var(--stone-700);
-  -webkit-mask: var(--star) center/contain no-repeat;
-          mask: var(--star) center/contain no-repeat;
+  width: 21px; height: 21px; display: block;
+  background: rgba(0,0,0,.45);
+  -webkit-mask: var(--star) center/contain no-repeat; mask: var(--star) center/contain no-repeat;
+  filter: drop-shadow(0 1px 0 rgba(0,0,0,.5));
   transition: background-color .18s ease, transform .18s ease;
 }
-.arc span:nth-child(1) { transform: rotate(-16deg) translateY(2px); }
-.arc span:nth-child(2) { transform: translateY(-3px) scale(1.12); }
-.arc span:nth-child(3) { transform: rotate(16deg) translateY(2px); }
-.arc span.on { background: var(--gold); filter: drop-shadow(0 0 5px rgba(255,194,60,.55)); }
-.arc span.pop { animation: pop .34s cubic-bezier(.34,1.56,.64,1); }
-@keyframes pop {
-  0%   { transform: scale(.2) rotate(-40deg); opacity: 0 }
-  60%  { transform: scale(1.35) }
-  100% { opacity: 1 }
-}
+.arc span:nth-child(1) { transform: rotate(-20deg) translateY(3px); }
+.arc span:nth-child(2) { transform: translateY(-4px) scale(1.16); }
+.arc span:nth-child(3) { transform: rotate(20deg) translateY(3px); }
+.arc span.on { background: var(--gold); filter: drop-shadow(0 0 6px rgba(255,200,60,.75)) drop-shadow(0 1px 0 var(--gold-dark)); }
+.arc span.pop { animation: pop .36s cubic-bezier(.34,1.56,.64,1); }
+@keyframes pop { 0%{transform:scale(.2) rotate(-50deg);opacity:0} 60%{transform:scale(1.4)} 100%{opacity:1} }
 .arc span:nth-child(2).pop { animation-name: pop-mid; }
 @keyframes pop-mid {
-  0%   { transform: translateY(-3px) scale(.2) rotate(-40deg); opacity: 0 }
-  60%  { transform: translateY(-3px) scale(1.5) }
-  100% { transform: translateY(-3px) scale(1.12); opacity: 1 }
+  0%{transform:translateY(-4px) scale(.2) rotate(-50deg);opacity:0}
+  60%{transform:translateY(-4px) scale(1.55)}
+  100%{transform:translateY(-4px) scale(1.16);opacity:1}
 }
 
-.tile .pct { display: block; margin-top: 5px; font-size: .7rem; color: var(--ink-3); font-weight: 700; }
-.tile .over { color: var(--lose); font-weight: 800; }
-
-/* --- Tabs ------------------------------------------------------------- */
+/* --- Tabs: wooden signboards ------------------------------------------ */
 
 .tabstate { position: absolute; opacity: 0; pointer-events: none; }
-.tabs { display: flex; gap: 6px; margin: 26px 0 0; }
+.tabs { display: flex; gap: 8px; margin: 24px 0 0; flex-wrap: wrap; }
 .tabs label {
   cursor: pointer; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase;
-  padding: 9px 16px; border-radius: 9px 9px 0 0; color: var(--ink-3);
-  background: linear-gradient(180deg, var(--stone-800), var(--stone-850));
-  border: 1px solid var(--stone-700); border-bottom: 0;
+  padding: 9px 17px; border-radius: 10px; color: var(--ink-2); -webkit-text-stroke-width: 2.5px;
+  background: var(--plank); border: 2px solid var(--wood-dark);
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.12), 0 4px 0 rgba(0,0,0,.45);
 }
-.tabs label:hover { color: var(--ink); }
-.panel { display: none; padding-top: 18px; border-top: 1px solid var(--stone-700); }
+.tabs label:hover { filter: brightness(1.12); }
+.panel { display: none; padding-top: 16px; }
 #t-war:checked ~ .tabs label[for="t-war"],
 #t-members:checked ~ .tabs label[for="t-members"],
 #t-history:checked ~ .tabs label[for="t-history"] {
-  color: var(--gold); background: linear-gradient(180deg, var(--stone-700), var(--stone-800));
+  color: var(--outline);
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 45%, var(--gold-mid));
+  border-color: var(--gold-dark); box-shadow: inset 0 2px 0 rgba(255,255,255,.6), 0 4px 0 var(--gold-dark);
 }
 #t-war:checked ~ .panel-war,
 #t-members:checked ~ .panel-members,
 #t-history:checked ~ .panel-history { display: block; }
 
-/* --- Rows, tables, notes ---------------------------------------------- */
+/* --- Lists, tables ---------------------------------------------------- */
 
 .rows { list-style: none; margin: 0; padding: 0; }
-.rows li {
-  display: grid; align-items: center; gap: 10px; padding: 11px 0;
-  border-bottom: 1px solid var(--stone-800);
-}
+.rows li { display: grid; align-items: center; gap: 10px; padding: 11px 2px; border-bottom: 2px solid rgba(0,0,0,.3); }
 .rows li:last-child { border-bottom: 0; }
-.rows .nm { font-weight: 800; }
-.rows .sub { font-size: .78rem; color: var(--ink-3); }
+.rows .nm { font-size: .92rem; color: var(--ink); -webkit-text-stroke-width: 2.5px; }
+.rows .sub { font-size: .76rem; color: var(--ink-2); font-weight: 700; }
 
 .tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
 table { width: 100%; border-collapse: collapse; font-size: .85rem; }
-th, td { padding: 10px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+th, td { padding: 9px 10px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 th:first-child, td:first-child { text-align: left; font-variant-numeric: normal; }
 thead th {
-  font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 800;
-  color: var(--ink-3); border-bottom: 1px solid var(--stone-600); cursor: pointer; user-select: none;
+  font-size: .64rem; letter-spacing: .12em; text-transform: uppercase; font-weight: 900;
+  color: var(--gold-hi); border-bottom: 3px solid rgba(0,0,0,.4); cursor: pointer; user-select: none;
 }
-thead th:hover { color: var(--gold); }
+thead th:hover { color: #fff; }
 thead th[aria-sort=ascending]::after { content: " \2191"; }
 thead th[aria-sort=descending]::after { content: " \2193"; }
-tbody tr { border-bottom: 1px solid var(--stone-800); }
-tbody tr:hover { background: rgba(255,255,255,.025); }
-.win { color: var(--win); font-weight: 800; } .lose { color: var(--lose); font-weight: 800; }
-.dim { color: var(--ink-3); }
+tbody tr { border-bottom: 2px solid rgba(0,0,0,.25); }
+tbody tr:hover { background: rgba(255,255,255,.05); }
+.win { color: var(--win); } .lose { color: var(--lose); } .dim { color: var(--ink-3); }
 
-details { border-bottom: 1px solid var(--stone-800); }
-summary { cursor: pointer; padding: 11px 0; list-style: none; font-weight: 700; font-size: .9rem; }
+details { border-bottom: 2px solid rgba(0,0,0,.3); }
+summary { cursor: pointer; padding: 11px 2px; list-style: none; font-weight: 800; font-size: .88rem; }
 summary::-webkit-details-marker { display: none; }
-summary::after { content: " ▾"; color: var(--ink-3); }
+summary::after { content: " ▾"; color: var(--gold); }
 details[open] summary::after { content: " ▴"; }
-.detail { padding: 0 0 16px; font-size: .86rem; color: var(--ink-2); display: grid; gap: 9px; }
+.detail { padding: 0 2px 16px; font-size: .85rem; color: var(--ink-2); display: grid; gap: 9px; font-weight: 600; }
 .detail dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0; }
-.detail dt { color: var(--ink-3); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; padding-top: 3px; }
-.detail dd { margin: 0; }
-.detail p { margin: 0; }
+.detail dt { color: var(--gold-hi); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; padding-top: 3px; font-weight: 900; }
+.detail dd, .detail p { margin: 0; }
 .detail .cite { font-size: .76rem; color: var(--ink-3); }
 .detail a { color: var(--gold); }
 
-.note { font-size: .8rem; color: var(--ink-3); line-height: 1.55; margin: 16px 0 0; }
+.note { font-size: .79rem; color: var(--ink-3); line-height: 1.6; margin: 16px 0 0; font-weight: 600; }
 .note strong { color: var(--ink-2); }
-.empty { padding: 22px 0; color: var(--ink-3); font-size: .9rem; }
-.empty strong { display: block; color: var(--ink-2); margin-bottom: 4px; font-size: 1rem; }
+.empty { padding: 20px 2px; color: var(--ink-3); font-size: .88rem; font-weight: 700; }
+.empty strong { display: block; color: var(--ink); font-size: 1rem; margin-bottom: 4px; -webkit-text-stroke: 2.5px var(--outline); paint-order: stroke fill; font-family: "Luckiest Guy", sans-serif; font-weight: 400; }
 
-.chart { display: block; width: 100%; height: auto; max-height: 260px; margin: 6px auto 0; }
-.chart-legend { display: flex; gap: 18px; font-size: .76rem; color: var(--ink-3); margin-top: 8px; }
+.chart { display: block; width: 100%; height: auto; max-height: 250px; margin: 6px auto 0; }
+.chart-legend { display: flex; gap: 16px; font-size: .75rem; color: var(--ink-2); margin-top: 8px; font-weight: 800; }
 .chart-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.chart-legend i { width: 9px; height: 9px; border-radius: 2px; }
+.chart-legend i { width: 10px; height: 10px; border-radius: 3px; border: 1px solid rgba(0,0,0,.5); }
 
-footer {
-  margin-top: 46px; padding-top: 14px; border-top: 1px solid var(--stone-800);
-  color: var(--ink-3); font-size: .74rem;
+.demo-flag {
+  margin: 14px 0 0; padding: 9px 14px; border-radius: 10px; text-align: center;
+  background: linear-gradient(180deg, #c0392b, #96281b); border: 3px solid #5c1710;
+  color: #ffe9e6; font-size: .76rem; font-weight: 900; letter-spacing: .05em;
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.25), 0 4px 0 rgba(0,0,0,.4);
 }
+.demo-flag a { color: #fff; }
+
+footer { margin-top: 40px; padding-top: 14px; border-top: 2px solid rgba(0,0,0,.35); color: var(--ink-3); font-size: .73rem; font-weight: 700; }
 footer p { margin: 3px 0; }
 
 @media (min-width: 620px) {
-  :root { --gutter: 24px; }
-  .duel { grid-template-columns: 1fr 44px 1fr; gap: 12px; }
-  .tile { padding: 30px 14px 12px; }
+  :root { --gutter: 22px; }
+  .duel { grid-template-columns: 1fr 52px 1fr; gap: 10px; }
+  .tile { padding: 24px 12px 12px; }
   .tile .nm { font-size: 1rem; }
-  .arc span { width: 22px; height: 22px; }
-  .board { padding: 26px 22px 22px; }
+  .arc span { width: 25px; height: 25px; }
+  .frame > .inner { padding: 24px 22px; }
+  .field { padding: 26px 20px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -369,11 +438,51 @@ footer p { margin: 3px 0; }
   .state .live::before { animation: none !important; }
 }
 
-/* Demo banner: fixture data must never be mistakable for a live war. */
-.demo-flag {
-  margin: 14px 0 0; padding: 9px 14px; border-radius: 9px;
-  background: rgba(255,107,107,.12); border: 1px solid #6b2b2b;
-  color: var(--lose); font-size: .78rem; font-weight: 800;
-  letter-spacing: .04em; text-align: center;
+/* --- Clan badges ------------------------------------------------------ */
+
+.board .side-name { display: flex; align-items: center; gap: 10px; }
+.board .side-name.them { flex-direction: row-reverse; }
+.badge {
+  width: 48px; height: 48px; flex: none; object-fit: contain;
+  filter: drop-shadow(0 3px 0 rgba(0,0,0,.45));
 }
-.demo-flag a { color: var(--ink-2); }
+
+/* --- Tiles are buttons ------------------------------------------------ */
+
+button.tile {
+  font: inherit; color: inherit; cursor: pointer; width: 100%;
+  -webkit-appearance: none; appearance: none;
+}
+button.tile:hover { filter: brightness(1.1); }
+button.tile:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+button.tile.sel {
+  border-color: var(--gold);
+  box-shadow: inset 0 2px 0 rgba(255,220,140,.35), 0 0 0 3px rgba(255,194,60,.35), 0 5px 0 var(--gold-dark);
+}
+
+.hint {
+  margin: 10px 0 0; text-align: center; font-size: .74rem; font-weight: 800;
+  letter-spacing: .06em; color: var(--ink-3); text-transform: uppercase;
+}
+
+/* --- Base inspector --------------------------------------------------- */
+
+.base-detail {
+  margin-top: 14px; padding: 16px 18px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,240,200,.97), rgba(240,218,166,.97));
+  border: 3px solid var(--wood-dark); color: #3a2a12;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.5), 0 6px 0 rgba(0,0,0,.4);
+}
+.base-detail h3 {
+  margin: 0 0 8px; font-family: "Luckiest Guy", sans-serif; font-weight: 400;
+  font-size: 1.1rem; color: #4a2c00; -webkit-text-stroke: 0;
+}
+.base-detail .cap {
+  margin: 10px 0 4px; font-size: .64rem; font-weight: 900; letter-spacing: .14em;
+  text-transform: uppercase; color: #8a5a15;
+}
+.base-detail .cap.none { color: #7a6a48; font-weight: 700; letter-spacing: 0; text-transform: none; font-size: .82rem; }
+.base-detail ul { list-style: none; margin: 0; padding: 0; }
+.base-detail li { padding: 5px 0; font-size: .86rem; font-weight: 700; border-bottom: 1px solid rgba(0,0,0,.1); }
+.base-detail li:last-child { border-bottom: 0; }
+.base-detail .n { display: inline-block; min-width: 2.2em; color: #8a5a15; font-weight: 900; }

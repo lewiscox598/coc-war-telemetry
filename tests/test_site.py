@@ -481,3 +481,40 @@ def test_demo_banner_never_appears_on_the_live_page(tmp_path, fixture_json) -> N
 
     assert "demo-flag" not in (live / "index.html").read_text(encoding="utf-8")
     assert "demo-flag" in (demo / "index.html").read_text(encoding="utf-8")
+
+
+def test_clan_badges_are_read_from_the_archive(tmp_path, fixture_json) -> None:
+    """Badges come off the archived war payload, so a site build still needs no
+    token and the deploy job never sees the key."""
+    from conftest import make_result
+
+    from coc_telemetry.capture import CaptureStore
+
+    store = CaptureStore(tmp_path / "raw")
+    payload = fixture_json("war_ended")
+    payload["clan"]["badgeUrls"] = {"medium": "https://example.invalid/us.png"}
+    payload["opponent"]["badgeUrls"] = {"medium": "https://example.invalid/them.png"}
+    store.write(make_result("currentwar", payload, at(23)))
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, payload, at(23), OUR_CLAN)
+    out = tmp_path / "site"
+    build_site(conn, out, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR", store=store)
+    conn.close()
+
+    html = (out / "index.html").read_text(encoding="utf-8")
+    assert "https://example.invalid/us.png" in html
+    assert "https://example.invalid/them.png" in html
+
+
+def test_bases_are_buttons_so_the_map_is_keyboard_reachable(tmp_path, fixture_json) -> None:
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    out = tmp_path / "site"
+    build_site(conn, out, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR")
+    conn.close()
+
+    html = (out / "index.html").read_text(encoding="utf-8")
+    assert html.count('<button type="button" class="tile') == 10
+    assert 'aria-expanded="false"' in html
+    assert 'id="base-detail"' in html
