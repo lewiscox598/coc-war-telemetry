@@ -21,7 +21,11 @@ from urllib.parse import quote
 import httpx
 
 # Paths are identical to https://api.clashofclans.com/v1; only the host differs.
-BASE_URL: Final = "https://proxy.royaleapi.dev/v1"
+#
+# Note the host: RoyaleAPI runs *two* proxies. proxy.royaleapi.dev fronts the Clash
+# Royale API and rejects a clash-scoped key with accessDenied.invalidScope; the
+# Clash of Clans proxy is cocproxy.royaleapi.dev. Verified empirically 2026-09-20.
+BASE_URL: Final = "https://cocproxy.royaleapi.dev/v1"
 
 # The developer key must whitelist this address rather than the caller's own IP:
 # the proxy makes the upstream request to Supercell, so this is the address
