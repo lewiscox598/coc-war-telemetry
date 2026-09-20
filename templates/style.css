@@ -486,3 +486,70 @@ button.tile.sel {
 .base-detail li { padding: 5px 0; font-size: .86rem; font-weight: 700; border-bottom: 1px solid rgba(0,0,0,.1); }
 .base-detail li:last-child { border-bottom: 0; }
 .base-detail .n { display: inline-block; min-width: 2.2em; color: #8a5a15; font-weight: 900; }
+
+/* --- Base inspector: two panels, one per question --------------------- */
+
+.base-detail.ours   { border-color: var(--gold-dark); }
+.base-detail.theirs { border-color: #5c2a22; }
+
+.bd-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap; padding-bottom: 8px; margin-bottom: 4px;
+  border-bottom: 2px solid rgba(0,0,0,.14);
+}
+.bd-head .meta { font-size: .74rem; font-weight: 800; color: #8a5a15; letter-spacing: .04em; }
+
+.grp {
+  display: grid; grid-template-columns: 86px 1fr; gap: 4px 12px;
+  padding: 8px 0; border-bottom: 1px solid rgba(0,0,0,.09);
+}
+.grp:last-child { border-bottom: 0; }
+.grp .k {
+  font-size: .6rem; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  color: #8a5a15; padding-top: 4px;
+}
+.grp .v { font-size: .86rem; font-weight: 700; min-width: 0; }
+.grp .sm { font-size: .78rem; font-weight: 600; color: #6f5a34; margin-top: 3px; }
+.grp .sm.none { font-style: italic; }
+.grp .warn { color: #a8261b; }
+.grp .tagi {
+  font-size: .6rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
+  background: rgba(0,0,0,.1); padding: 2px 6px; border-radius: 5px; color: #6f5a34;
+}
+
+.grp ul { list-style: none; margin: 6px 0 0; padding: 0; }
+.grp li {
+  display: grid; grid-template-columns: 2.4em 1fr auto; gap: 8px; align-items: baseline;
+  padding: 4px 0; border-bottom: 1px solid rgba(0,0,0,.07); font-size: .82rem;
+}
+.grp li:last-child { border-bottom: 0; }
+.grp li .n { color: #8a5a15; font-weight: 900; }
+.grp li .t { font-size: .72rem; color: #7a6a48; }
+.grp li .r { white-space: nowrap; font-weight: 800; }
+
+.grp .s { color: var(--gold-mid); letter-spacing: 1px; }
+.grp .s.off { color: rgba(0,0,0,.2); }
+
+.grp .hero {
+  display: inline-block; margin: 0 10px 2px 0; font-size: .8rem; color: #6f5a34;
+}
+.grp .hero b { color: #3a2a12; font-size: .9rem; }
+
+.grp .pips { display: inline-flex; gap: 3px; margin-right: 6px; vertical-align: 1px; }
+.grp .pips i {
+  width: 8px; height: 8px; border-radius: 50%; display: block;
+  background: rgba(0,0,0,.18); border: 1px solid rgba(0,0,0,.25);
+}
+.grp .pips i.used { background: var(--gold-mid); border-color: var(--gold-dark); }
+
+@media (max-width: 460px) {
+  .grp { grid-template-columns: 1fr; gap: 2px; }
+  .grp .k { padding-top: 0; }
+}
+
+/* Build stamp on the demo banner: if this time is older than the deploy you
+   were told about, you are looking at a cached copy. */
+.demo-flag .stamp {
+  display: block; margin-top: 4px; font-size: .66rem; font-weight: 700;
+  letter-spacing: .06em; color: rgba(255,255,255,.7); text-transform: none;
+}

@@ -518,3 +518,69 @@ def test_bases_are_buttons_so_the_map_is_keyboard_reachable(tmp_path, fixture_js
     assert html.count('<button type="button" class="tile') == 10
     assert 'aria-expanded="false"' in html
     assert 'id="base-detail"' in html
+
+
+# --- Inspector payload ---------------------------------------------------
+
+
+def _payload(conn, tag="#202VL9GR"):
+    import json as _json
+
+    from coc_telemetry.site import replay_payload
+
+    apply_views(conn)
+    war = dict(conn.execute("SELECT * FROM wars").fetchone())
+    return _json.loads(replay_payload(conn, war, tag))
+
+
+def test_our_members_carry_context_the_enemy_does_not(tmp_path, fixture_json) -> None:
+    """Tapping one of ours and tapping an enemy ask different questions, so the
+    payload carries different things for each side."""
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    data = _payload(conn)
+    conn.close()
+
+    ours = [m for m in data["roster"] if m["side"] == "clan"]
+    theirs = [m for m in data["roster"] if m["side"] == "opponent"]
+    assert ours and theirs
+
+    for m in ours:
+        assert "heroes" in m and "record" in m, "our members need their own context"
+    for m in theirs:
+        assert "heroes" not in m, "enemy hero levels are not available from the API"
+        assert "from" in m, "an enemy base should name who is assigned to it"
+
+
+def test_hero_levels_reach_the_inspector(tmp_path, fixture_json) -> None:
+    """Hero levels are the evidence behind 'this army is not fieldable', so they
+    have to be visible on the member panel."""
+    from coc_telemetry.capture import CaptureStore
+    from coc_telemetry.ingest import ingest_capture
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    store = CaptureStore(Path("data/raw"))
+    for capture in store.iter_captures():
+        if capture.endpoint.startswith("player_"):
+            ingest_capture(conn, capture, OUR_CLAN)
+    conn.commit()
+    data = _payload(conn)
+    conn.close()
+
+    with_heroes = [m for m in data["roster"] if m.get("heroes")]
+    assert with_heroes, "no member carried hero levels"
+    assert any("AQ" in m["heroes"] or "BK" in m["heroes"] for m in with_heroes)
+
+
+def test_payload_embeds_no_attack_derived_figures(tmp_path, fixture_json) -> None:
+    """Anything that moves with the scrub must be recomputed in the page, never
+    baked in -- otherwise the panel claims things that had not happened yet."""
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    data = _payload(conn)
+    conn.close()
+
+    for m in data["roster"]:
+        for banned in ("stars", "attacksUsed", "starsConceded", "verdict", "best"):
+            assert banned not in m, f"{banned} is scrub-dependent and must not be embedded"

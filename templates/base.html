@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#141922">
+<!-- Pages serves HTML with max-age=600 and that header cannot be changed here.
+     Asking for revalidation shortens the window where a stale copy is served
+     silently; the build stamp below makes it visible when one still is. -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <title>{% block title %}{{ clan_name }}{% endblock %}</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -15,7 +19,7 @@
 <body>
 <div class="wrap">
 
-  {% if demo %}<p class="demo-flag">Demo &mdash; recorded fixture data, not a real war. <a href="{{ root }}">Back to the live clan page</a></p>{% endif %}
+  {% if demo %}<p class="demo-flag">Demo &mdash; recorded fixture data, not a real war. <a href="{{ root }}">Back to the live clan page</a><span class="stamp">build {{ generated_at }}</span></p>{% endif %}
 
   <div class="banner">
     <h1>{% block masthead %}{{ clan_name }}{% endblock %}</h1>
@@ -177,37 +181,120 @@
   slider.addEventListener("keydown", stop);
 
   /* --- Base inspector -----------------------------------------------
-     Every base is a button; selecting one reports every attack on it, and
-     every attack its owner made, at the currently scrubbed point in the war. */
+     Two different questions, so two different panels. Tapping one of ours
+     asks "are they pulling their weight and what can they field"; tapping an
+     enemy asks "is this base worth another attack and who has tried".
+
+     Everything attack-derived is recomputed at the scrubbed point, so the
+     panel never claims something that had not happened yet. */
   var panel = document.getElementById("base-detail");
   var selected = null;
-  var nameOf = {};
-  W.roster.forEach(function (m) { nameOf[m.tag] = m.name; });
+  var byTag = {};
+  W.roster.forEach(function (m) { byTag[m.tag] = m; });
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function starStr(n) {
+    return '<span class="s">' + "★".repeat(n) + '</span>' +
+           '<span class="s off">' + "★".repeat(3 - n) + "</span>";
+  }
+  function row(a, verb, otherTag) {
+    var o = byTag[otherTag];
+    return '<li><span class="n">#' + a.n + "</span>" +
+           '<span class="w">' + esc(verb) + " <b>" + esc(o ? o.name : "unknown") + "</b>" +
+           (o ? ' <span class="t">TH' + o.th + "</span>" : "") + "</span>" +
+           '<span class="r">' + starStr(a.s) + " " + a.d + "%</span></li>";
+  }
+  function block(label, body) {
+    return '<div class="grp"><span class="k">' + label + '</span><div class="v">' + body + "</div></div>";
+  }
+  function pips(used, of) {
+    var out = "";
+    for (var i = 0; i < of; i++) out += '<i class="' + (i < used ? "used" : "") + '"></i>';
+    return '<span class="pips">' + out + "</span>";
+  }
 
   function describe(tag) {
-    var t = +slider.value;
-    var received = [], made = [];
+    var t = +slider.value, m = byTag[tag];
+    if (!m) return "";
+    var made = [], got = [], best = 0, bestPct = 0;
     W.attacks.forEach(function (a) {
       if (a.n > t) return;
-      if (a.on === tag) received.push(a);
       if (a.by === tag) made.push(a);
+      if (a.on === tag) { got.push(a); if (a.s > best) best = a.s; if (a.d > bestPct) bestPct = a.d; }
     });
-    function line(a, verb, other) {
-      return "<li><span class=\"n\">#" + a.n + "</span> " + verb + " <b>" +
-             (nameOf[other] || "unknown") + "</b> · " + a.s + "★ " + a.d + "%</li>";
+    var stars = made.reduce(function (n, a) { return n + a.s; }, 0);
+    var per = W.perMember || 1;
+
+    var h = '<div class="bd-head"><h3>' + esc(m.name) + "</h3>" +
+            '<span class="meta">#' + m.pos + " · TH" + m.th +
+            (m.role ? " · " + esc(m.role) : "") + "</span></div>";
+
+    if (m.side === "clan") {
+      /* --- one of ours --- */
+      if (m.orders) h += block("Orders", "Hit <b>" + esc(m.orders) + "</b>");
+      if (m.army) {
+        var army = "<b>" + esc(m.army.name) + "</b>" +
+          (m.army.atLevel ? "" : ' <span class="tagi">lower-TH army</span>') +
+          '<div class="sm">' + esc(m.army.troops) + "</div>";
+        if (!m.army.ok && m.army.blockers.length)
+          army += '<div class="sm warn">Blocked: ' + esc(m.army.blockers.join("; ")) + "</div>";
+        h += block("Army", army);
+      }
+      h += block("This war",
+        pips(made.length, per) + " " + made.length + " of " + per + " used · <b>" +
+        stars + "★</b>" +
+        (made.length ? '<ul>' + made.map(function (a) { return row(a, "hit", a.on); }).join("") + "</ul>"
+                     : '<div class="sm none">No attacks yet.</div>'));
+      h += block("Defence", got.length
+        ? starStr(best) + " conceded · " + bestPct + "%<ul>" +
+          got.map(function (a) { return row(a, "hit by", a.by); }).join("") + "</ul>"
+        : '<span class="sm none">Never attacked.</span>');
+      if (m.heroes && Object.keys(m.heroes).length) {
+        h += block("Heroes", Object.keys(m.heroes).map(function (k) {
+          return '<span class="hero">' + k + " <b>" + m.heroes[k] + "</b></span>";
+        }).join(""));
+      }
+      if (m.record) {
+        h += block("Record", m.record.wars + (m.record.wars === 1 ? " war" : " wars") +
+          " · " + m.record.usage + "% usage" +
+          (m.record.three !== null ? " · " + m.record.three + "% three-star" : ""));
+      }
+    } else {
+      /* --- an enemy base --- */
+      var left = 3 - best;
+      h += block("Status", starStr(best) + " · <b>" + left + "</b> star" + (left === 1 ? "" : "s") +
+        " still available" + (got.length ? " · " + bestPct + "% best" : ""));
+      h += block("Attempts", got.length
+        ? "<ul>" + got.map(function (a) { return row(a, "by", a.by); }).join("") + "</ul>"
+        : '<span class="sm none">Nobody has attacked this base yet.</span>');
+
+      var verdict;
+      if (best === 3) verdict = "Cleared. Do not spend an attack here.";
+      else if (!got.length) verdict = "Untouched — no information yet. Expect it to behave like a TH" + m.th + ".";
+      else if (best === 2) verdict = "One star left. A clean follow-up takes it.";
+      else if (got.length >= 2) verdict = got.length + " attacks for " + best + " star" +
+        (best === 1 ? "" : "s") + ". Treat this as genuinely hard, not unlucky.";
+      else verdict = "One attempt reached " + best + " star" + (best === 1 ? "" : "s") + ".";
+      h += block("Verdict", verdict);
+
+      h += block("Their offence", made.length
+        ? pips(made.length, per) + " " + stars + "★ taken from us<ul>" +
+          made.map(function (a) { return row(a, "hit", a.on); }).join("") + "</ul>"
+        : '<span class="sm none">Has not attacked us yet.</span>');
+      if (m.from) {
+        h += block("Assigned", "<b>" + esc(m.from.name) + "</b> (TH" + m.from.th + ")" +
+          (m.from.over ? ' <span class="warn">— ' + m.from.over + " levels under</span>" : ""));
+      }
     }
-    var html = "<h3>" + (nameOf[tag] || "Base") + "</h3>";
-    html += made.length
-      ? "<p class=\"cap\">Attacks made</p><ul>" + made.map(function (a) { return line(a, "hit", a.on); }).join("") + "</ul>"
-      : "<p class=\"cap none\">No attacks made yet.</p>";
-    html += received.length
-      ? "<p class=\"cap\">Attacks received</p><ul>" + received.map(function (a) { return line(a, "hit by", a.by); }).join("") + "</ul>"
-      : "<p class=\"cap none\">Never attacked.</p>";
-    return html;
+    return h;
   }
 
   function select(tile) {
-    if (selected === tile) {          // tapping the open base closes it
+    if (selected === tile) {
       selected.classList.remove("sel");
       selected.setAttribute("aria-expanded", "false");
       selected = null; panel.hidden = true; return;
@@ -219,6 +306,7 @@
     selected = tile;
     tile.classList.add("sel");
     tile.setAttribute("aria-expanded", "true");
+    panel.className = "base-detail " + (tile.dataset.side === "clan" ? "ours" : "theirs");
     panel.innerHTML = describe(tile.dataset.tag);
     panel.hidden = false;
   }
@@ -227,7 +315,6 @@
     tile.addEventListener("click", function () { select(tile); });
   });
 
-  // Keep an open inspector truthful while the war is scrubbed.
   slider.addEventListener("input", function () {
     if (selected) panel.innerHTML = describe(selected.dataset.tag);
   });

@@ -666,21 +666,87 @@ def replay_payload(conn: sqlite3.Connection, war: dict[str, Any] | None, player_
     if not war:
         return "null"
 
-    roster = [
-        {
-            "tag": r["player_tag"],
+    # Static per-entity context for the inspector. Attack-derived figures are
+    # NOT baked in here -- those are recomputed in the page so the panel stays
+    # truthful while the war is scrubbed. Only things that do not move with the
+    # scrub (hero levels, lifetime record, the assignment) are embedded.
+    heroes: dict[str, dict[str, int]] = {}
+    for r in conn.execute(
+        """
+        SELECT player_tag, name, level FROM player_units
+        WHERE category = 'hero' AND village = 'home'
+          AND snapshot_date = (SELECT MAX(snapshot_date) FROM player_units)
+        """
+    ):
+        short = {
+            "Barbarian King": "BK",
+            "Archer Queen": "AQ",
+            "Grand Warden": "GW",
+            "Royal Champion": "RC",
+            "Minion Prince": "MP",
+        }.get(r["name"])
+        if short:
+            heroes.setdefault(r["player_tag"], {})[short] = r["level"]
+
+    record = {
+        r["player_tag"]: {
+            "wars": r["wars"],
+            "usage": int(r["usage_pct"] or 0),
+            "three": int(r["three_star_pct"]) if r["three_star_pct"] is not None else None,
+        }
+        for r in member_performance(conn)
+    }
+    roles = {
+        r["player_tag"]: r["role"]
+        for r in conn.execute(
+            "SELECT player_tag, role FROM member_snapshots WHERE snapshot_date = "
+            "(SELECT MAX(snapshot_date) FROM member_snapshots)"
+        )
+    }
+
+    assigned_to: dict[str, str] = {}
+    assigned_from: dict[str, dict[str, Any]] = {}
+    for plan in recommend_assignments(conn, war["war_id"]):
+        target = plan.get("planned_defender_tag") or plan["defender_tag"]
+        assigned_to[plan["attacker_tag"]] = plan["defender"]
+        assigned_from[target] = {
+            "name": plan["attacker"],
+            "th": plan["attacker_th"],
+            "over": -plan["th_diff"] if plan["th_diff"] <= -2 else 0,
+        }
+
+    roster = []
+    for r in conn.execute(
+        "SELECT player_tag, name, map_position, townhall_level, side "
+        "FROM war_members WHERE war_id = ? ORDER BY side, map_position",
+        (war["war_id"],),
+    ):
+        tag = r["player_tag"]
+        entry: dict[str, Any] = {
+            "tag": tag,
             "name": r["name"],
             "pos": r["map_position"],
             "th": r["townhall_level"],
             "side": r["side"],
-            "me": r["player_tag"] == player_tag,
+            "me": tag == player_tag,
         }
-        for r in conn.execute(
-            "SELECT player_tag, name, map_position, townhall_level, side "
-            "FROM war_members WHERE war_id = ? ORDER BY side, map_position",
-            (war["war_id"],),
-        )
-    ]
+        if r["side"] == "clan":
+            entry["heroes"] = heroes.get(tag, {})
+            entry["role"] = roles.get(tag)
+            entry["record"] = record.get(tag)
+            entry["orders"] = assigned_to.get(tag)
+            best = next(iter(army_options(conn, tag, r["townhall_level"])), None)
+            if best:
+                entry["army"] = {
+                    "name": best["name"],
+                    "ok": best["viable"],
+                    "atLevel": best["at_level"],
+                    "blockers": best["blockers"][:3],
+                    "troops": best["composition"],
+                }
+        else:
+            entry["from"] = assigned_from.get(tag)
+        roster.append(entry)
     attacks = [
         {
             "n": r["order_num"],
