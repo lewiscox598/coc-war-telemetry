@@ -8,7 +8,6 @@ into a message.
 from __future__ import annotations
 
 import argparse
-import sqlite3
 import sys
 import tomllib
 from dataclasses import dataclass
@@ -16,7 +15,7 @@ from pathlib import Path
 
 from coc_telemetry.capture import CaptureStore
 from coc_telemetry.client import ApiResult, CocApiError, CocClient, normalise_tag
-from coc_telemetry.ingest import connect, ingest_capture, ingest_war, rebuild
+from coc_telemetry.ingest import connect, ingest_capture, rebuild
 from coc_telemetry.site import build_site
 
 DEFAULT_CONFIG = Path("config.toml")
@@ -176,26 +175,18 @@ def cmd_rebuild(args: argparse.Namespace) -> int:
 def cmd_build_site(args: argparse.Namespace) -> int:
     """Render the static site. Deployed by deploy.yml in the same workflow run.
 
-    A war in preparation has no attacks, so the replay and the whole battle-day
-    half of the page would be empty until the fighting starts. Rather than ship
-    a hollow page and hide the working one behind a /demo/ path, the site falls
-    back to a recorded sample war and says so in one line. The moment a real
-    attack lands the live war takes over and the line disappears -- no switch to
-    throw, no second URL.
+    Always real data. An earlier version substituted a recorded war while the
+    live one sat in preparation, on the reasoning that a war with no attacks
+    left the page empty. That was wrong twice over: the page is not empty --
+    roster, Town Hall levels, hero levels, assignments and army walkthroughs
+    are all live and present before a single attack -- and swapping in a
+    recorded scoreline meant the page showed a war that never happened.
     """
     config = Config.load(args.config)
     store = CaptureStore(args.raw)
     conn = connect(args.db)
     try:
         clan_name, clan = _clan_identity(store, config.clan_tag)
-        live_attacks = conn.execute("SELECT COUNT(*) FROM attacks").fetchone()[0]
-        use_sample = live_attacks == 0 and not args.no_sample
-
-        if use_sample:
-            print("  no attacks recorded yet, rendering a sample war")
-            conn.close()
-            conn = _sample_connection(args, config)
-
         written = build_site(
             conn,
             args.output,
@@ -204,37 +195,12 @@ def cmd_build_site(args: argparse.Namespace) -> int:
             player_tag=config.player_tag,
             store=store,
             clan=clan,
-            sample=use_sample,
         )
     finally:
         conn.close()
     for path in written:
         print(f"  wrote {path}")
     return 0
-
-
-def _sample_connection(args: argparse.Namespace, config: Config) -> sqlite3.Connection:
-    """A throwaway database holding one recorded war, plus the real roster.
-
-    The members and player records are genuine; only the war is recorded, which
-    keeps hero levels and army advice accurate even while the scoreline is not.
-    """
-    import json
-    from datetime import UTC, datetime
-
-    fixture = Path("tests/fixtures/war_ended.json")
-    conn = connect(Path(":memory:"))
-    ingest_war(
-        conn,
-        json.loads(fixture.read_text(encoding="utf-8")),
-        datetime(2026, 9, 22, 13, 40, tzinfo=UTC),
-        config.clan_tag,
-    )
-    for capture in CaptureStore(args.raw).iter_captures():
-        if capture.endpoint == "members" or capture.endpoint.startswith("player_"):
-            ingest_capture(conn, capture, config.clan_tag)
-    conn.commit()
-    return conn
 
 
 def _clan_identity(store: CaptureStore, clan_tag: str) -> tuple[str, dict | None]:
@@ -284,11 +250,6 @@ def build_parser() -> argparse.ArgumentParser:
         subparsers[name] = sub.add_parser(name, help=help_text)
         subparsers[name].set_defaults(func=fn)
 
-    subparsers["build-site"].add_argument(
-        "--no-sample",
-        action="store_true",
-        help="render the empty live war rather than falling back to a sample",
-    )
     return parser
 
 

@@ -571,3 +571,10 @@ ol.steps li::marker { font-weight: 900; color: var(--gold-mid); }
 
 /* In the dark orders list they sit on the page background. */
 .detail ol.steps li { color: var(--ink-2); }
+
+/* Replay before the first attack: say what is coming rather than vanishing. */
+.replay.locked .inner { opacity: .85; }
+.locked-note {
+  margin: 0; font-size: .82rem; font-weight: 700; color: var(--ink-2); line-height: 1.5;
+}
+.locked-note strong { color: var(--gold); }

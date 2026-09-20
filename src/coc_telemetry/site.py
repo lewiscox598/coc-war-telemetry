@@ -308,7 +308,6 @@ def build_site(
     player_tag: str,
     store: CaptureStore | None = None,
     clan: dict[str, Any] | None = None,
-    sample: bool = False,
 ) -> list[Path]:
     env = _environment(templates)
     context = gather(conn, player_tag)
@@ -339,7 +338,6 @@ def build_site(
         clan=clan,
         generated_at=datetime.now(UTC).astimezone(LONDON).strftime("%-d %b %Y, %H:%M %Z"),
         capture_count=len(captures),
-        sample=sample,
         first_capture=first_capture,
     )
 

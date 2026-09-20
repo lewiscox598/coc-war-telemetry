@@ -62,6 +62,24 @@
   </div>
  </div>
 </div>
+{% elif war %}
+<div class="frame replay locked">
+ <div class="inner">
+  <div class="head">
+    <span class="label">Replay</span>
+  </div>
+  <p class="locked-note">
+    {% if phase == 'prep' %}
+      Unlocks with the first attack of the war &mdash; battle day starts in
+      <strong data-countdown="{{ war.start_time }}">&hellip;</strong>.
+      Every attack is captured as it happens, so the whole fight can be wound
+      back and played through afterwards.
+    {% else %}
+      No attacks recorded yet. The first one to land unlocks the replay.
+    {% endif %}
+  </p>
+ </div>
+</div>
 {% endif %}
 
 {% include "_orders.html" %}

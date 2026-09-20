@@ -468,24 +468,40 @@ def test_map_pairs_by_position_with_no_duplicate_bases(tmp_path, fixture_json) -
             assert r["us"]["map_position"] == r["them"]["map_position"]
 
 
-def test_sample_war_is_labelled_and_real_data_is_not(tmp_path, fixture_json) -> None:
-    """A recorded scoreline must never be mistakable for the clan's own war, and
-    the label must disappear the moment real data is used."""
+def test_the_page_only_ever_shows_real_war_data(tmp_path, fixture_json) -> None:
+    """No substituted or recorded scoreline may reach the page. An earlier build
+    swapped in a sample war while the live one sat in preparation, which showed a
+    war that never happened."""
     conn = connect(tmp_path / "t.db")
-    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
-
-    live = tmp_path / "live"
-    build_site(conn, live, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR")
-    sample = tmp_path / "sample"
-    build_site(
-        conn, sample, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR", sample=True
-    )
+    ingest_war(conn, fixture_json("war_preparation"), at(10), OUR_CLAN)
+    out = tmp_path / "site"
+    build_site(conn, out, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR")
     conn.close()
 
-    assert "sample-note" not in (live / "index.html").read_text(encoding="utf-8")
-    labelled = (sample / "index.html").read_text(encoding="utf-8")
-    assert "sample-note" in labelled
-    assert "recorded sample war" in labelled
+    html = (out / "index.html").read_text(encoding="utf-8")
+    assert "sample-note" not in html
+    assert "sample war" not in html.lower()
+    # A war in preparation genuinely has no attacks, so there is nothing to replay
+    # -- but the page must say so rather than silently dropping the section.
+    assert 'id="scrub"' not in html
+    assert "replay locked" in html
+    assert "Unlocks with the first attack" in html
+
+
+def test_preparation_page_is_not_hollow(tmp_path, fixture_json) -> None:
+    """Before a single attack the page still has to be worth opening: the roster,
+    the matchups and the army walkthroughs are all live from the start."""
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_preparation"), at(10), OUR_CLAN)
+    out = tmp_path / "site"
+    build_site(conn, out, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR")
+    conn.close()
+
+    html = (out / "index.html").read_text(encoding="utf-8")
+    assert html.count('<button type="button" class="tile') == 10, "full map"
+    assert 'ol class="steps"' in html, "army walkthroughs"
+    assert 'id="base-detail"' in html, "inspector"
+    assert "data-countdown" in html, "countdown to battle day"
 
 
 def test_every_army_carries_a_step_by_step_walkthrough() -> None:
