@@ -9,6 +9,7 @@ Timestamps are stored as UTC and rendered in Europe/London.
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 import sqlite3
 from datetime import UTC, datetime
@@ -322,14 +323,23 @@ def build_site(
 
     output.mkdir(parents=True, exist_ok=True)
     (output / "me").mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(templates / "style.css", output / "style.css")
+    css_source = templates / "style.css"
+    shutil.copyfile(css_source, output / "style.css")
+
+    # Cache-bust the stylesheet on content. Pages serves style.css from a CDN with
+    # a long cache life, so without this a returning visitor gets new HTML against
+    # their cached old CSS -- which renders as a completely broken page until they
+    # hard-refresh. The hash changes only when the CSS actually changes.
+    css_version = hashlib.sha256(css_source.read_bytes()).hexdigest()[:10]
 
     written: list[Path] = []
     for template_name, target, page, root in [
         ("clan.html", output / "index.html", "clan", ""),
         ("me.html", output / "me" / "index.html", "me", "../"),
     ]:
-        html = env.get_template(template_name).render(**context, page=page, root=root)
+        html = env.get_template(template_name).render(
+            **context, page=page, root=root, css_version=css_version
+        )
         target.write_text(html, encoding="utf-8")
         written.append(target)
     return written

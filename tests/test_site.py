@@ -312,3 +312,39 @@ def test_off_plan_attacks_are_labelled(tmp_path, fixture_json) -> None:
     assert off, "the fixture has members who attacked off their assignment"
     for d in off:
         assert d["planned_defender"] != d["defender"]
+
+
+def test_stylesheet_is_cache_busted_on_content(tmp_path, fixture_json) -> None:
+    """Pages serves CSS from a long-lived CDN cache. Without a content-keyed
+    version, a returning visitor gets new HTML against their old cached CSS and
+    the page renders completely broken until they hard-refresh."""
+    import re
+
+    counter = iter(range(100))
+
+    def build_with(css: str) -> str:
+        # A fresh directory per build: identical CSS must still build twice.
+        templates = tmp_path / f"build{next(counter)}"
+        templates.mkdir()
+        for name in ("base.html", "clan.html", "me.html", "_orders.html"):
+            (templates / name).write_text(
+                (TEMPLATES / name).read_text(encoding="utf-8"), encoding="utf-8"
+            )
+        (templates / "style.css").write_text(css, encoding="utf-8")
+
+        conn = connect(templates / "db.sqlite")
+        ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+        out = templates / "site"
+        build_site(conn, out, templates=templates, clan_name="X", player_tag="#202VL9GR")
+        conn.close()
+        html = (out / "index.html").read_text(encoding="utf-8")
+        match = re.search(r"style\.css\?v=([a-f0-9]+)", html)
+        assert match, "stylesheet link carries no version"
+        return match.group(1)
+
+    first = build_with("body { color: red }")
+    again = build_with("body { color: red }")
+    changed = build_with("body { color: blue }")
+
+    assert first == again, "identical CSS must keep the same version"
+    assert first != changed, "changed CSS must produce a new version"
