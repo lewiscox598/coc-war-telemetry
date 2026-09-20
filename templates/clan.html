@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block eyebrow %}Clan dashboard{% endblock %}
+{% block sub %}Level {{ clan.clanLevel if clan else '' }} &middot; {{ member_count }} members &middot; tracking since {{ first_capture }}{% endblock %}
+
+{% block content %}
+
+<div class="card">
+  <div class="hero">
+    <div class="hero-head">
+      {% if war %}
+      <span class="hero-vs">vs {{ war.opponent_name }} <span>&middot; {{ war.team_size }}v{{ war.team_size }}</span></span>
+      <span class="pill {{ 'live' if war.state == 'inWar' else 'prep' }}">{{ war.state_label }}</span>
+      {% else %}
+      <span class="hero-vs">No war in progress</span>
+      <span class="pill">Idle</span>
+      {% endif %}
+    </div>
+
+    <div>
+      <p class="figure"{% if hero.countdown %} data-countdown="{{ hero.countdown }}"{% endif %}>{{ hero.figure }}</p>
+      <p class="figure-label">{{ hero.label }}</p>
+      <p class="figure-sub">{{ hero.sub }}</p>
+    </div>
+
+    {% if roster %}
+    <div>
+      <h2 style="margin-top:0">Attacks used</h2>
+      <ul class="lineup">
+        {% for m in roster %}
+        <li>
+          <div class="row">
+            <span class="who"><span class="pos">{{ m.map_position }}</span>{{ m.name }}<span class="th">TH{{ m.townhall_level }}</span></span>
+            <span class="state {{ 'done' if m.attacks_missed == 0 }}">
+              {% if m.attacks_missed == 0 %}all used{% else %}{{ m.attacks_used }}/{{ m.attacks_available }}{% endif %}
+            </span>
+          </div>
+          <div class="meter {{ 'full' if m.attacks_missed == 0 }}">
+            {% for i in range(m.attacks_available) %}
+            <i class="{{ '' if i < m.attacks_used else 'empty' }}" style="flex:1 1 0"></i>
+            {% endfor %}
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="kpis">
+  {% for k in clan_kpis %}
+  <div class="kpi">
+    <p class="k-label">{{ k.label }}</p>
+    <p class="k-value">{{ k.value }}{% if k.unit %}<span class="k-unit">{{ k.unit }}</span>{% endif %}</p>
+    <p class="k-foot">{{ k.foot }}</p>
+    {{ k.spark | safe }}
+  </div>
+  {% endfor %}
+</div>
+
+<h2>Stars per war</h2>
+<div class="card">
+  {% if war_chart %}
+  {{ war_chart | safe }}
+  <div class="chart-legend">
+    <span><i style="background:#3987e5"></i>Us</span>
+    <span><i style="background:#d95926"></i>Them</span>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="e-title">Not enough wars yet</span>
+    <span class="e-body">This chart needs two completed wars to plot a trend. The first is
+    in preparation now.</span>
+  </div>
+  {% endif %}
+</div>
+
+<h2>War history</h2>
+<div class="card {{ 'flush' if history }}">
+  {% if history %}
+  <div class="tablewrap">
+    <table data-sortable>
+      <thead><tr>
+        <th>Opponent</th><th>Type</th><th>Result</th><th>Stars</th><th>Destruction</th><th>Ended</th>
+      </tr></thead>
+      <tbody>
+        {% for w in history %}
+        <tr>
+          <td>{{ w.opponent_name }}</td>
+          <td class="dim">{{ 'CWL' if w.war_type == 'cwl' else 'Regular' }}</td>
+          <td class="{{ w.result }}">{{ w.result or w.state }}</td>
+          <td data-v="{{ w.clan_stars }}" class="num-strong">{{ w.clan_stars }}&ndash;{{ w.opponent_stars }}</td>
+          <td data-v="{{ w.clan_destruction }}">{{ w.clan_destruction | round(1) }}%</td>
+          <td data-v="{{ w.end_time }}" class="dim">{{ w.ended_label }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="e-title">No wars recorded</span>
+    <span class="e-body">Wars appear here once they finish.</span>
+  </div>
+  {% endif %}
+</div>
+
+<h2>Member performance</h2>
+<div class="card {{ 'flush' if members and members[0].attacks_used }}">
+  {% if members and members[0].attacks_available %}
+  <div class="tablewrap">
+    <table data-sortable>
+      <thead><tr>
+        <th>Member</th><th>TH</th><th>Wars</th><th>Used</th><th>Missed</th>
+        <th>Usage</th><th>Stars</th><th>Value added</th><th>3&#9733;</th><th>Avg dest.</th>
+      </tr></thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td>{{ m.name }}</td>
+          <td data-v="{{ m.townhall_level }}" class="dim">{{ m.townhall_level }}</td>
+          <td>{{ m.wars }}</td>
+          <td>{{ m.attacks_used }}/{{ m.attacks_available }}</td>
+          <td data-v="{{ m.attacks_missed }}" class="{{ 'lose' if m.attacks_missed else 'dim' }}">{{ m.attacks_missed }}</td>
+          <td data-v="{{ m.usage_pct or 0 }}" class="num-strong">{{ m.usage_pct | int }}%</td>
+          <td>{{ m.stars }}</td>
+          <td data-v="{{ m.new_stars }}" class="num-strong">{{ m.new_stars }}</td>
+          <td data-v="{{ m.three_star_pct or 0 }}">{% if m.three_star_pct is not none %}{{ m.three_star_pct | int }}%{% else %}&ndash;{% endif %}</td>
+          <td data-v="{{ m.avg_destruction or 0 }}">{% if m.avg_destruction %}{{ m.avg_destruction }}%{% else %}&ndash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="e-title">No attacks yet</span>
+    <span class="e-body">Per-member figures fill in from the first battle day. The roster
+    above is already being tracked.</span>
+  </div>
+  {% endif %}
+</div>
+<p class="note"><strong>Value added</strong> counts only the stars an attack gained over the best
+previous attack on that base, so cleanup is credited fairly and a three-star on an untouched
+base is not confused with one on a base already at two.</p>
+
+<h2>Drifting</h2>
+<div class="card">
+  {% if passive %}
+  <ul class="lineup">
+    {% for p in passive %}
+    <li>
+      <div class="row">
+        <span class="who">{{ p.name }}</span>
+        <span class="state">attacks {{ p.usage_before | int }}% &rarr; {{ p.usage_now | int }}%</span>
+      </div>
+      <div class="row">
+        <span class="dim" style="font-size:0.82rem">donations {{ p.donations_before | int }} &rarr; {{ p.donations_now | int }}</span>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    <span class="e-title">Nobody flagged</span>
+    <span class="e-body">Flags require attack usage <em>and</em> donations to fall together
+    across at least two completed wars &mdash; one signal alone is usually just a busy week.</span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

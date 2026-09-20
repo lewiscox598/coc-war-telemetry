@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ me_name }}{% endblock %}
+{% block eyebrow %}Personal record{% endblock %}
+{% block heading %}{{ me_name }}{% endblock %}
+{% block sub %}{{ player_tag }}{% if me %} &middot; Town Hall {{ me.town_hall_level }} &middot; {{ me.role }}{% endif %}{% endblock %}
+
+{% block content %}
+
+<div class="kpis">
+  {% for k in me_kpis %}
+  <div class="kpi">
+    <p class="k-label">{{ k.label }}</p>
+    <p class="k-value">{{ k.value }}{% if k.unit %}<span class="k-unit">{{ k.unit }}</span>{% endif %}</p>
+    <p class="k-foot">{{ k.foot }}</p>
+    {{ k.spark | safe }}
+  </div>
+  {% endfor %}
+</div>
+
+<h2>War record</h2>
+<div class="card {{ 'flush' if my_wars }}">
+  {% if my_wars %}
+  <div class="tablewrap">
+    <table data-sortable>
+      <thead><tr>
+        <th>Opponent</th><th>Used</th><th>Stars</th><th>Value added</th><th>Avg dest.</th><th>Result</th>
+      </tr></thead>
+      <tbody>
+        {% for w in my_wars %}
+        <tr>
+          <td>{{ w.opponent_name }}</td>
+          <td>{{ w.attacks_used }}/{{ w.attacks_available }}</td>
+          <td data-v="{{ w.stars }}" class="num-strong">{{ w.stars }}</td>
+          <td data-v="{{ w.new_stars }}" class="num-strong">{{ w.new_stars }}</td>
+          <td data-v="{{ w.avg_destruction }}">{{ w.avg_destruction | round(1) }}%</td>
+          <td class="{{ w.result }}">{{ w.result or w.state }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="e-title">No attacks recorded</span>
+    <span class="e-body">Your war record starts building from the first battle day.</span>
+  </div>
+  {% endif %}
+</div>
+
+<h2>Three-star rate by matchup</h2>
+<div class="card {{ 'flush' if matchups }}">
+  {% if matchups %}
+  <div class="tablewrap">
+    <table data-sortable>
+      <thead><tr>
+        <th>Matchup</th><th>My TH</th><th>Their TH</th><th>Attacks</th><th>3&#9733;</th><th>Rate</th><th>Avg stars</th><th>Value added</th>
+      </tr></thead>
+      <tbody>
+        {% for m in matchups %}
+        <tr>
+          <td>{{ m.matchup }}</td>
+          <td class="dim">{{ m.attacker_th }}</td>
+          <td class="dim">{{ m.defender_th }}</td>
+          <td>{{ m.attacks }}</td>
+          <td>{{ m.three_stars }}</td>
+          <td data-v="{{ m.three_star_pct or 0 }}" class="num-strong">{{ m.three_star_pct | int }}%</td>
+          <td data-v="{{ m.avg_stars }}">{{ m.avg_stars }}</td>
+          <td data-v="{{ m.avg_new_stars }}">{{ m.avg_new_stars }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="e-title">No matchup data</span>
+    <span class="e-body">Splitting three-star rate by attacker and defender Town Hall needs
+    attacks across at least one battle day.</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="cols">
+<section>
+<h2>Attack timing</h2>
+<div class="card {{ 'flush' if timing }}">
+  {% if timing %}
+  <div class="tablewrap">
+    <table data-sortable>
+      <thead><tr><th>War</th><th>First attack</th><th>After start</th><th>Before end</th></tr></thead>
+      <tbody>
+        {% for t in timing %}
+        <tr>
+          <td>{{ t.opponent_name }}</td>
+          <td class="dim">{{ t.first_attack_label }}</td>
+          <td data-v="{{ t.hours_after_start }}" class="num-strong">{{ t.hours_after_start }}h</td>
+          <td data-v="{{ t.hours_before_end }}">{{ t.hours_before_end }}h</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="e-title">No timing yet</span>
+    <span class="e-body">Recorded from when a poll first sees each attack.</span>
+  </div>
+  {% endif %}
+</div>
+<p class="note">Timing comes from when a poll first observed an attack, so it is accurate to
+roughly the 15-minute poll interval &mdash; enough to tell an early attacker from a last-hour
+one, but not an exact clock. The API does not expose one.</p>
+</section>
+
+<section>
+<h2>Donations</h2>
+<div class="card {{ 'flush' if donations }}">
+  {% if donations %}
+  <div class="tablewrap">
+    <table data-sortable>
+      <thead><tr><th>Date</th><th>Total</th><th>Change</th><th>Received</th><th></th></tr></thead>
+      <tbody>
+        {% for d in donations %}
+        <tr>
+          <td>{{ d.snapshot_date }}</td>
+          <td data-v="{{ d.donations }}">{{ d.donations }}</td>
+          <td data-v="{{ d.donation_delta }}" class="num-strong">+{{ d.donation_delta }}</td>
+          <td data-v="{{ d.donations_received }}">{{ d.donations_received }}</td>
+          <td class="dim">{{ 'reset' if d.season_reset else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty">
+    <span class="e-title">No history yet</span>
+    <span class="e-body">One row is added per nightly snapshot.</span>
+  </div>
+  {% endif %}
+</div>
+</section>
+</div>
+{% endblock %}

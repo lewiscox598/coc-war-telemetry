@@ -1,0 +1,61 @@
+name: Deploy site
+
+# Build and deploy happen in the same run. A push made with GITHUB_TOKEN -- which
+# is how the pollers commit -- does not trigger further workflows, so this cannot
+# rely on the data commit to wake it up and runs on its own schedule instead.
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "templates/**"
+      - "data/telemetry.db"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+# Pages has its own queue; deliberately NOT the telemetry-data group, since this
+# workflow only reads the committed database and never writes to it.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      # No COC_API_TOKEN here on purpose: build-site reads the clan identity from
+      # data/raw, so the deploy path never touches the key.
+      - name: Render site
+        run: uv run coc-telemetry build-site
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

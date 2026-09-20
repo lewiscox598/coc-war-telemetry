@@ -20,8 +20,14 @@ from coc_telemetry.ingest import (
 )
 
 TABLES = [
-    "wars", "war_members", "attacks", "member_snapshots",
-    "player_snapshots", "player_units", "capital_raids", "capital_raid_members",
+    "wars",
+    "war_members",
+    "attacks",
+    "member_snapshots",
+    "player_snapshots",
+    "player_units",
+    "capital_raids",
+    "capital_raid_members",
 ]
 
 
@@ -35,8 +41,7 @@ def db(tmp_path: Path) -> sqlite3.Connection:
 def dump(conn: sqlite3.Connection) -> dict[str, list[tuple]]:
     """Every row in every table, ordered, for equality comparison."""
     return {
-        table: sorted(tuple(r) for r in conn.execute(f"SELECT * FROM {table}"))
-        for table in TABLES
+        table: sorted(tuple(r) for r in conn.execute(f"SELECT * FROM {table}")) for table in TABLES
     }
 
 
@@ -161,9 +166,7 @@ def test_war_first_seen_tracks_earliest_and_last_seen_latest(db, fixture_json) -
 
 
 def test_cwl_round_is_keyed_on_its_war_tag(db, fixture_json) -> None:
-    war_id = ingest_war(
-        db, fixture_json("cwl_round"), at(15), OUR_CLAN, war_tag="#2PP0JCCL"
-    )
+    war_id = ingest_war(db, fixture_json("cwl_round"), at(15), OUR_CLAN, war_tag="#2PP0JCCL")
     row = db.execute("SELECT * FROM wars").fetchone()
     assert war_id == "#2PP0JCCL"
     assert row["war_type"] == "cwl"
@@ -178,9 +181,7 @@ def test_cwl_wars_have_no_attacks_per_member(db, fixture_json) -> None:
 
 def test_cwl_round_between_other_clans_is_skipped(db, fixture_json) -> None:
     """A league group lists every round war, including ones we are not in."""
-    result = ingest_war(
-        db, fixture_json("cwl_round"), at(15), "#NOTOURCLAN", war_tag="#2PP0JCCL"
-    )
+    result = ingest_war(db, fixture_json("cwl_round"), at(15), "#NOTOURCLAN", war_tag="#2PP0JCCL")
     assert result is None
     assert db.execute("SELECT COUNT(*) FROM wars").fetchone()[0] == 0
 

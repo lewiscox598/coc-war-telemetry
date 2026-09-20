@@ -66,6 +66,14 @@
             "stars": 2,
             "destructionPercentage": 85,
             "duration": 180
+          },
+          {
+            "order": 9,
+            "attackerTag": "#QP092QQ2P",
+            "defenderTag": "#GCCUV08PC",
+            "stars": 0,
+            "destructionPercentage": 22,
+            "duration": 205
           }
         ],
         "bestOpponentAttack": {
@@ -140,17 +148,7 @@
         "name": "thoulja boy",
         "townhallLevel": 10,
         "mapPosition": 3,
-        "opponentAttacks": 0,
-        "attacks": [
-          {
-            "order": 9,
-            "attackerTag": "#L8RCVYV2J",
-            "defenderTag": "#GCCUV08PC",
-            "stars": 0,
-            "destructionPercentage": 22,
-            "duration": 205
-          }
-        ]
+        "opponentAttacks": 0
       }
     ]
   },
@@ -275,7 +273,7 @@
         "opponentAttacks": 1,
         "bestOpponentAttack": {
           "order": 9,
-          "attackerTag": "#L8RCVYV2J",
+          "attackerTag": "#QP092QQ2P",
           "defenderTag": "#GCCUV08PC",
           "stars": 0,
           "destructionPercentage": 22,

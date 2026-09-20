@@ -1,0 +1,264 @@
+/* Hand-written. No framework.
+   Palette: validated categorical slots on the panel surface #1c1c1b
+   (blue #3987e5, orange #d95926, aqua #199e70 -- all checks pass, worst adjacent
+   CVD dE 9.4). Status colours are reserved and never reused as series colours.
+   Text never wears a data colour; identity comes from a mark beside it. */
+
+:root {
+  /* Surfaces */
+  --bg:         #101010;
+  --surface:    #1c1c1b;
+  --surface-2:  #242423;
+  --line:       #2e2e2b;
+  --line-soft:  #252523;
+
+  /* Text tokens */
+  --ink:        #f4f4f1;
+  --ink-2:      #a9a9a0;
+  --ink-3:      #78786f;
+
+  /* Data */
+  --series-1:   #3987e5;
+  --series-2:   #d95926;
+  --track:      #184f95;
+
+  /* Status (reserved -- always paired with a label, never colour alone) */
+  --good:       #0ca30c;
+  --warning:    #fab219;
+  --critical:   #d03b3b;
+
+  /* Scale */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px;
+  --radius: 14px;
+  --gutter: 16px;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  padding: 0 var(--gutter) var(--s7);
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+  font-feature-settings: "cv01", "ss01";
+}
+
+.wrap { width: 100%; max-width: 620px; margin-inline: auto; }
+
+/* --- Header ----------------------------------------------------------- */
+
+header { padding: var(--s6) 0 var(--s2); }
+
+.eyebrow {
+  font-size: 0.72rem; font-weight: 600; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--ink-3); margin: 0 0 var(--s2);
+}
+
+h1 {
+  font-size: clamp(1.6rem, 1.25rem + 1.6vw, 2.4rem);
+  line-height: 1.1; margin: 0 0 var(--s2);
+  letter-spacing: -0.02em; font-weight: 680;
+}
+
+h2 {
+  font-size: 0.78rem; font-weight: 650; letter-spacing: 0.09em;
+  text-transform: uppercase; color: var(--ink-3);
+  margin: var(--s6) 0 var(--s3);
+}
+
+.sub { color: var(--ink-2); font-size: 0.92rem; margin: 0; }
+
+nav { display: flex; gap: var(--s2); margin-top: var(--s4); flex-wrap: wrap; }
+nav a {
+  padding: 7px 16px; border-radius: 999px; text-decoration: none;
+  background: var(--surface); color: var(--ink-2); font-size: 0.88rem;
+  border: 1px solid var(--line); transition: color .15s, border-color .15s;
+}
+nav a:hover { color: var(--ink); border-color: var(--ink-3); }
+nav a.on { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+
+/* --- Cards ------------------------------------------------------------ */
+
+.card {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--s4); margin: var(--s3) 0;
+}
+.card.flush { padding: 0; overflow: hidden; }
+
+/* --- Hero: the one number the page leads with ------------------------- */
+
+.hero { display: grid; gap: var(--s4); }
+
+.hero-head {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: var(--s3); flex-wrap: wrap;
+}
+.hero-vs { font-size: 1.15rem; font-weight: 650; letter-spacing: -0.01em; }
+.hero-vs span { color: var(--ink-3); font-weight: 400; }
+
+.figure {
+  /* Proportional figures: tabular-nums makes a large number look loose. */
+  font-size: clamp(2.6rem, 2rem + 3.4vw, 4rem);
+  font-weight: 700; line-height: 0.95; letter-spacing: -0.03em;
+  margin: 0; font-variant-numeric: proportional-nums;
+}
+.figure-label { color: var(--ink-2); font-size: 0.92rem; margin: var(--s2) 0 0; }
+.figure-sub { color: var(--ink-3); font-size: 0.82rem; margin: var(--s1) 0 0; }
+
+.pill {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 5px 11px; border-radius: 999px; background: var(--surface-2);
+  color: var(--ink-2); white-space: nowrap; font-weight: 600;
+  border: 1px solid var(--line);
+}
+.pill.live { background: var(--good); color: #042404; border-color: var(--good); }
+.pill.prep { background: var(--surface-2); color: var(--warning); border-color: #4a3c14; }
+
+/* --- KPI row ---------------------------------------------------------- */
+
+.kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--s3); margin: var(--s3) 0; }
+
+.kpi {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--s4); min-width: 0;
+}
+.kpi .k-label {
+  font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--ink-3); margin: 0 0 var(--s2); font-weight: 600;
+}
+.kpi .k-value {
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2rem); font-weight: 680;
+  line-height: 1; letter-spacing: -0.02em; margin: 0;
+}
+.kpi .k-unit { font-size: 0.55em; color: var(--ink-3); font-weight: 500; margin-left: 2px; }
+.kpi .k-foot { font-size: 0.78rem; color: var(--ink-3); margin: var(--s2) 0 0; }
+.kpi .k-spark { margin-top: var(--s3); display: block; }
+
+/* --- Meters: attacks used, as a ratio against a limit ----------------- */
+
+.lineup { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s3); }
+.lineup li { display: grid; gap: 7px; }
+
+.lineup .row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--s3);
+}
+.lineup .who { font-weight: 600; font-size: 0.95rem; min-width: 0; }
+.lineup .pos { color: var(--ink-3); font-weight: 500; margin-right: 6px; font-variant-numeric: tabular-nums; }
+.lineup .th { color: var(--ink-3); font-size: 0.82rem; font-weight: 400; margin-left: 7px; }
+.lineup .state { font-size: 0.82rem; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.lineup .state.done { color: var(--good); font-weight: 600; }
+
+/* Unfilled track is a lighter step of the fill's own ramp, so state reads
+   across the whole bar rather than only where it is filled. */
+.meter { height: 7px; border-radius: 4px; background: var(--surface-2); overflow: hidden; display: flex; gap: 2px; }
+.meter i { display: block; background: var(--series-1); border-radius: 2px; flex: 0 0 auto; }
+.meter i.empty { background: #2b2b29; flex: 1 1 auto; }
+.meter.full i { background: var(--good); }
+
+/* --- Charts ----------------------------------------------------------- */
+
+/* height:auto would scale the viewBox to the container width, making the chart
+   ~330px tall on a desktop. Cap it and centre the letterboxed remainder. */
+.chart { display: block; width: 100%; height: auto; max-height: 280px;
+         margin-inline: auto; overflow: visible; }
+.chart-legend {
+  display: flex; gap: var(--s4); flex-wrap: wrap;
+  margin: var(--s3) 0 0; font-size: 0.8rem; color: var(--ink-2);
+}
+.chart-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.chart-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+/* --- Tables ----------------------------------------------------------- */
+
+.tablewrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+
+th, td {
+  padding: 11px 12px; text-align: right; white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+th:first-child, td:first-child {
+  text-align: left; position: sticky; left: 0;
+  background: var(--surface); font-variant-numeric: normal;
+}
+thead th {
+  color: var(--ink-3); font-weight: 600; font-size: 0.72rem;
+  text-transform: uppercase; letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--line); cursor: pointer; user-select: none;
+  position: sticky; top: 0; background: var(--surface);
+}
+thead th:hover { color: var(--ink); }
+thead th[aria-sort="ascending"]::after { content: " \25B2"; font-size: 0.65em; }
+thead th[aria-sort="descending"]::after { content: " \25BC"; font-size: 0.65em; }
+
+tbody tr { border-bottom: 1px solid var(--line-soft); }
+tbody tr:last-child { border-bottom: 0; }
+tbody tr:hover td, tbody tr:hover td:first-child { background: var(--surface-2); }
+
+.win { color: var(--good); } .lose { color: var(--critical); } .tie { color: var(--ink-2); }
+.dim { color: var(--ink-3); }
+.num-strong { font-weight: 650; }
+
+/* --- Empty states: intentional, not broken ---------------------------- */
+
+.empty {
+  display: grid; gap: var(--s2); padding: var(--s5) var(--s4);
+  text-align: center; color: var(--ink-3);
+}
+.empty .e-title { color: var(--ink-2); font-weight: 600; font-size: 0.95rem; }
+.empty .e-body { font-size: 0.85rem; max-width: 42ch; margin-inline: auto; line-height: 1.5; }
+
+.note {
+  background: var(--surface-2); border-left: 2px solid var(--series-1);
+  padding: 12px 15px; border-radius: 0 8px 8px 0;
+  font-size: 0.85rem; color: var(--ink-2); margin: var(--s3) 0 0;
+}
+.note strong { color: var(--ink); font-weight: 600; }
+
+footer {
+  margin-top: var(--s7); padding-top: var(--s4);
+  border-top: 1px solid var(--line); color: var(--ink-3); font-size: 0.76rem;
+}
+footer p { margin: var(--s1) 0; }
+
+/* --- Large phones / small tablets ------------------------------------- */
+
+@media (min-width: 560px) {
+  :root { --gutter: 24px; }
+  .wrap { max-width: 700px; }
+  .card, .kpi { padding: var(--s5); }
+  .kpis { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* --- Laptops ---------------------------------------------------------- */
+
+@media (min-width: 1024px) {
+  .wrap { max-width: 1000px; }
+
+  .hero { grid-template-columns: minmax(280px, 0.85fr) 1.15fr; gap: var(--s5) var(--s7); align-items: start; }
+  .hero-head { grid-column: 1 / -1; }
+  .hero > :only-child, .cols > :only-child { grid-column: 1 / -1; }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--s6); align-items: start; }
+  .cols > section { min-width: 0; }
+
+  table { font-size: 0.9rem; }
+  th, td { padding: 12px 14px; }
+}
+
+/* --- Desktops --------------------------------------------------------- */
+
+@media (min-width: 1280px) {
+  .wrap { max-width: 1180px; }
+  body { font-size: 17px; }
+  .card, .kpi { padding: var(--s5); }
+  th, td { padding: 13px 18px; }
+  .hero { gap: var(--s5) 64px; }
+}
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }

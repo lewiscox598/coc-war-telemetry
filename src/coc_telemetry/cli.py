@@ -16,6 +16,7 @@ from pathlib import Path
 from coc_telemetry.capture import CaptureStore
 from coc_telemetry.client import ApiResult, CocApiError, CocClient, normalise_tag
 from coc_telemetry.ingest import connect, ingest_capture, rebuild
+from coc_telemetry.site import build_site
 
 DEFAULT_CONFIG = Path("config.toml")
 DEFAULT_RAW = Path("data/raw")
@@ -155,13 +156,56 @@ def cmd_rebuild(args: argparse.Namespace) -> int:
 
     conn = connect(args.db)
     try:
-        for table in ("wars", "war_members", "attacks", "member_snapshots",
-                      "player_snapshots", "player_units", "capital_raids"):
+        for table in (
+            "wars",
+            "war_members",
+            "attacks",
+            "member_snapshots",
+            "player_snapshots",
+            "player_units",
+            "capital_raids",
+        ):
             n = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
             print(f"  {table:20} {n}")
     finally:
         conn.close()
     return 0
+
+
+def cmd_build_site(args: argparse.Namespace) -> int:
+    """Render the static site. Deployed by deploy.yml in the same workflow run."""
+    config = Config.load(args.config)
+    store = CaptureStore(args.raw)
+    conn = connect(args.db)
+    try:
+        clan_name, clan = _clan_identity(store, config.clan_tag)
+        written = build_site(
+            conn,
+            args.output,
+            templates=args.templates,
+            clan_name=clan_name,
+            player_tag=config.player_tag,
+            store=store,
+            clan=clan,
+        )
+    finally:
+        conn.close()
+    for path in written:
+        print(f"  wrote {path}")
+    return 0
+
+
+def _clan_identity(store: CaptureStore, clan_tag: str) -> tuple[str, dict | None]:
+    """Clan name and profile from the newest /clans/{tag} capture.
+
+    Read from the archive rather than the API so a site build needs no token and
+    can run on any checkout.
+    """
+    latest = store.latest_path("clan")
+    if latest is None:
+        return clan_tag, None
+    data = store.read(latest).data
+    return data.get("name", clan_tag), data
 
 
 def cmd_check(args: argparse.Namespace) -> int:
@@ -183,12 +227,15 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--raw", type=Path, default=DEFAULT_RAW)
     parser.add_argument("--db", type=Path, default=DEFAULT_DB)
+    parser.add_argument("--output", type=Path, default=Path("site"))
+    parser.add_argument("--templates", type=Path, default=Path("templates"))
     sub = parser.add_subparsers(dest="command", required=True)
 
     for name, fn, help_text in [
         ("poll", cmd_poll, "poll current war, falling back to CWL"),
         ("nightly", cmd_nightly, "snapshot roster, players and capital raids"),
         ("rebuild", cmd_rebuild, "rebuild the database from data/raw"),
+        ("build-site", cmd_build_site, "render the static site"),
         ("check", cmd_check, "verify token and connectivity"),
     ]:
         sub.add_parser(name, help=help_text).set_defaults(func=fn)

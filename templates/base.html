@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>{% block title %}{{ clan_name }}{% endblock %}</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="{{ root }}style.css">
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">{% block eyebrow %}{% endblock %}</p>
+    <h1>{% block heading %}{{ clan_name }}{% endblock %}</h1>
+    <p class="sub">{% block sub %}{% endblock %}</p>
+    <nav>
+      <a href="{{ root }}" class="{{ 'on' if page == 'clan' }}">Clan</a>
+      <a href="{{ root }}me/" class="{{ 'on' if page == 'me' }}">{{ me_name }}</a>
+    </nav>
+  </header>
+
+  {% block content %}{% endblock %}
+
+  <footer>
+    <p>Generated {{ generated_at }} &middot; {{ capture_count }} captures since {{ first_capture }}</p>
+    <p>This material is unofficial and is not endorsed by Supercell.</p>
+  </footer>
+</div>
+
+<script>
+// Presentation only. No data fetching and no API calls: the key never reaches
+// the client. The countdown reformats a timestamp already embedded in the page,
+// so the hero figure stays accurate between builds instead of going stale.
+(function () {
+  function tick() {
+    document.querySelectorAll("[data-countdown]").forEach(function (el) {
+      var target = new Date(el.dataset.countdown).getTime();
+      var delta = target - Date.now();
+      if (delta <= 0) { el.textContent = "now"; return; }
+      var m = Math.floor(delta / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
+      el.textContent = d > 0 ? d + "d " + (h % 24) + "h"
+                     : h > 0 ? h + "h " + (m % 60) + "m"
+                             : m + "m";
+    });
+  }
+  tick();
+  setInterval(tick, 30000);
+})();
+
+// Table sorting.
+document.querySelectorAll("table[data-sortable]").forEach(function (table) {
+  var body = table.tBodies[0];
+  table.querySelectorAll("thead th").forEach(function (th, col) {
+    th.addEventListener("click", function () {
+      var desc = th.getAttribute("aria-sort") !== "descending";
+      table.querySelectorAll("thead th").forEach(function (o) { o.removeAttribute("aria-sort"); });
+      th.setAttribute("aria-sort", desc ? "descending" : "ascending");
+      var rows = Array.from(body.rows);
+      rows.sort(function (a, b) {
+        var x = a.cells[col].dataset.v ?? a.cells[col].textContent.trim();
+        var y = b.cells[col].dataset.v ?? b.cells[col].textContent.trim();
+        var nx = parseFloat(x), ny = parseFloat(y);
+        var cmp = (!isNaN(nx) && !isNaN(ny)) ? nx - ny : x.localeCompare(y);
+        return desc ? -cmp : cmp;
+      });
+      rows.forEach(function (r) { body.appendChild(r); });
+    });
+  });
+});
+</script>
+</body>
+</html>
