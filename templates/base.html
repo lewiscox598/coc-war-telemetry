@@ -3,40 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="dark">
-<meta name="theme-color" content="#0e0d0b">
+<meta name="theme-color" content="#ffffff">
 <title>{% block title %}{{ clan_name }}{% endblock %}</title>
 <link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ root }}style.css?v={{ css_version }}">
 </head>
 <body>
 <div class="wrap">
 
-  <div class="bar">
-    <div>
-      <p class="mark">{% block heading %}{{ clan_name }}{% endblock %}</p>
-      <p class="meta">{% block sub %}{% endblock %}</p>
-    </div>
-    <span class="spacer"></span>
-    {% if war %}<span class="phase {{ phase }}">{{ war.state_label }}</span>{% endif %}
-    <nav>
+  <div class="masthead">
+    <p class="clan">{% block masthead %}{{ clan_name }}{% endblock %}</p>
+    <p class="who">
       <a href="{{ root }}" class="{{ 'on' if page == 'clan' }}">Clan</a>
+      &nbsp;·&nbsp;
       <a href="{{ root }}me/" class="{{ 'on' if page == 'me' }}">{{ me_name }}</a>
-    </nav>
+    </p>
   </div>
 
   {% block content %}{% endblock %}
 
   <footer>
-    <p>{{ capture_count }} captures since {{ first_capture }} &middot; built {{ generated_at }}</p>
+    <p>{{ capture_count }} captures since {{ first_capture }} · built {{ generated_at }}</p>
     <p>This material is unofficial and is not endorsed by Supercell.</p>
   </footer>
 </div>
 
 <script>
-// Presentation only. No data fetching, no API calls: the key never reaches the
-// client. The countdown reformats a timestamp already in the page, so the
-// headline stays right between builds instead of going stale.
+// Presentation only. No data fetching and no API calls: the key never reaches
+// the client. The countdown reformats a timestamp already in the page.
 (function () {
   function tick() {
     document.querySelectorAll("[data-countdown]").forEach(function (el) {
@@ -44,8 +41,7 @@
       if (delta <= 0) { el.textContent = "now"; return; }
       var m = Math.floor(delta / 60000), h = Math.floor(m / 60), d = Math.floor(h / 24);
       el.textContent = d > 0 ? d + "d " + (h % 24) + "h"
-                     : h > 0 ? h + "h " + (m % 60) + "m"
-                             : m + "m";
+                     : h > 0 ? h + "h " + (m % 60) + "m" : m + "m";
     });
   }
   tick(); setInterval(tick, 30000);

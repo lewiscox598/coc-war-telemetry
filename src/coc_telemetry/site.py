@@ -257,6 +257,7 @@ def gather(conn: sqlite3.Connection, player_tag: str) -> dict[str, Any]:
 
     # The war map: one row per matchup, carrying both sides' live state.
     duels, my_duel = _duels(conn, war, player_tag)
+    feed = _feed(conn, war, player_tag)
     phase = PHASES.get(war["state"], "idle") if war else "idle"
 
     attacks_used = sum(d["attacks_used"] for d in duels)
@@ -267,6 +268,7 @@ def gather(conn: sqlite3.Connection, player_tag: str) -> dict[str, Any]:
         "roster": roster,
         "duels": duels,
         "my_duel": my_duel,
+        "feed": feed,
         "phase": phase,
         "attacks_used": attacks_used,
         "attacks_total": attacks_total,
@@ -353,11 +355,14 @@ def build_site(
 # number on every point. Colours are the validated categorical slots for the panel
 # surface; text never wears a data colour.
 
-SURFACE = "#1c1c1b"
-SERIES_1 = "#3987e5"
-SERIES_2 = "#d95926"
-INK_3 = "#78786f"
-GRID = "#2e2e2b"
+# Light-mode steps. These are not the dark ones lightened: each mode is stepped
+# and validated against its own surface. Validated on white: CVD dE 24.7,
+# normal-vision dE 33.6, both series clear 3:1 against the surface.
+SURFACE = "#ffffff"
+SERIES_1 = "#2a78d6"
+SERIES_2 = "#eb6834"
+INK_3 = "#78756d"
+GRID = "#e7e5e0"
 
 
 def svg_sparkline(
@@ -583,3 +588,42 @@ def _duels(
 
     mine = next((r for r in rows if r["is_me"]), None)
     return rows, mine
+
+
+def _feed(
+    conn: sqlite3.Connection, war: dict[str, Any] | None, player_tag: str
+) -> list[dict[str, Any]]:
+    """Every attack in the war, in order, both sides.
+
+    A war is an ordered event stream -- order_num is a monotonic per-war sequence
+    and is already the backbone of the ingest design. Rendering it as a feed with
+    a central spine, rather than a static snapshot, is the form that matches the
+    data and needs no legend to read.
+    """
+    if not war:
+        return []
+    rows = conn.execute(
+        """
+        SELECT
+            a.order_num, a.stars, a.new_stars, a.destruction_percentage,
+            a.attacker_side, a.attacker_tag,
+            atk.name AS attacker, atk.map_position AS attacker_position,
+            atk.townhall_level AS attacker_th,
+            dfn.name AS defender, dfn.map_position AS defender_position,
+            dfn.townhall_level AS defender_th
+        FROM attack_values a
+        LEFT JOIN war_members atk
+               ON atk.war_id = a.war_id AND atk.player_tag = a.attacker_tag
+              AND atk.side = a.attacker_side
+        LEFT JOIN war_members dfn
+               ON dfn.war_id = a.war_id AND dfn.player_tag = a.defender_tag
+              AND dfn.side = CASE WHEN a.attacker_side = 'clan' THEN 'opponent' ELSE 'clan' END
+        WHERE a.war_id = ?
+        ORDER BY a.order_num
+        """,
+        (war["war_id"],),
+    )
+    return [
+        {**dict(r), "is_me": r["attacker_tag"] == player_tag, "ours": r["attacker_side"] == "clan"}
+        for r in rows
+    ]

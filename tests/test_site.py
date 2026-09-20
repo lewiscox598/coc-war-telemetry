@@ -57,7 +57,8 @@ def test_war_chart_renders_two_labelled_series() -> None:
     svg = svg_war_stars(wars)
     assert svg.startswith("<svg") and svg.endswith("</svg>")
     assert svg.count("<path") == 2
-    assert "#3987e5" in svg and "#d95926" in svg
+    # Light-mode categorical steps, validated against the white chart surface.
+    assert "#2a78d6" in svg and "#eb6834" in svg
     assert "<title>" in svg, "hover layer should be present"
 
 
@@ -264,8 +265,15 @@ def test_both_pages_lead_with_orders_during_a_war(tmp_path, fixture_json) -> Non
     build_site(conn, out, templates=TEMPLATES, clan_name="Sunbury Massive", player_tag=tag)
     conn.close()
 
+    # Assert on the element, not its wording: the label changes with war phase
+    # and copy changes should not break a structural guarantee.
     for page in ["index.html", "me/index.html"]:
-        assert "Your orders" in (out / page).read_text(encoding="utf-8")
+        html = (out / page).read_text(encoding="utf-8")
+        assert 'class="orders"' in html, f"{page} does not lead with the orders block"
+        body = html.split("<body", 1)[1]
+        assert body.index('class="orders"') < body.index('class="tabs"'), (
+            f"{page} shows orders after the tabs"
+        )
 
 
 def test_map_shows_who_was_actually_attacked_not_who_was_planned(tmp_path, fixture_json) -> None:
