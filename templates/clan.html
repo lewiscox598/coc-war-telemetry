@@ -47,6 +47,90 @@
   </div>
 </div>
 
+<h2>War plan</h2>
+{% if plan %}
+<p class="basis" style="margin-bottom:12px">Expected {{ plan_expected }} of {{ plan_max }} stars on first attacks.
+Targets are assigned to maximise total expected stars, not to pair mirrors &mdash; sometimes
+someone attacks off their mirror so a teammate gets a base they can actually three-star.</p>
+<div class="plan">
+  {% for p in plan %}
+  <div class="plan-item {{ 'warn' if p.outmatched }}">
+    <div class="plan-row">
+      <span class="plan-name">{{ p.attacker }}<span class="plan-th">TH{{ p.attacker_th }}</span></span>
+      <span class="plan-arrow">&rarr;</span>
+      <span class="plan-name">#{{ p.defender_position }} {{ p.defender }}<span class="plan-th">TH{{ p.defender_th }}</span></span>
+      <span class="plan-exp">{{ p.expected_stars }}&#9733;</span>
+    </div>
+    <div class="plan-row" style="margin-bottom:8px">
+      <span class="tag {{ p.confidence }}">{{ p.confidence }}</span>
+      {% if p.outmatched %}<span class="tag danger">outmatched by {{ -p.th_diff }}</span>{% endif %}
+      {% if p.off_mirror %}<span class="tag">off mirror</span>{% endif %}
+    </div>
+    <p class="basis">{{ p.basis }}</p>
+
+    {% for a in p.armies %}{% if loop.first %}
+    <div class="army">
+      {% if a.viable %}
+      <div class="army-name">{{ a.name }}{% if not a.at_level %} <span class="tag">TH{{ a.designed_for }} army</span>{% endif %}</div>
+      <dl>
+        <dt>Troops</dt><dd>{{ a.composition }}</dd>
+        <dt>Spells</dt><dd>{{ a.spells }}</dd>
+      </dl>
+      <p class="why">{{ a.note }}</p>
+      {% if not a.at_level %}
+      <p class="blocked">Nothing written for TH{{ p.attacker_th }} is fieldable on this account, so this is
+      the strongest army they can actually bring.</p>
+      {% endif %}
+      <p class="blocked">Source: <a href="{{ a.source }}" rel="noopener">{{ a.source_title }}</a>, retrieved {{ army_retrieved }}</p>
+      {% else %}
+      <div class="army-name">No fieldable army</div>
+      <p class="blocked">Every option is blocked: {{ a.blockers | join('; ') }}.</p>
+      {% endif %}
+    </div>
+    {% endif %}{% endfor %}
+  </div>
+  {% endfor %}
+</div>
+<p class="note"><strong>What this is not.</strong> The API exposes only a base's tag, name, Town Hall
+level and map position &mdash; no layout, no defence levels, no image. Nothing here has seen the
+enemy base, and no source online holds three-star replays against a specific base. Army advice is
+general per-Town-Hall strategy, filtered by what each member has actually unlocked in their lab.
+The base-specific signal arrives on battle day below.</p>
+{% else %}
+<div class="card">
+  <div class="empty">
+    <span class="e-title">No war to plan</span>
+    <span class="e-body">Target assignments appear as soon as a war enters preparation.</span>
+  </div>
+</div>
+{% endif %}
+
+{% if cleanup %}
+<h2>Cleanup board</h2>
+<div class="card flush">
+  <div class="tablewrap">
+    <table data-sortable>
+      <thead><tr><th>Base</th><th>TH</th><th>Attempts</th><th>Best</th><th>Left</th><th>Read</th></tr></thead>
+      <tbody>
+        {% for b in cleanup %}
+        <tr>
+          <td>#{{ b.map_position }} {{ b.name }}</td>
+          <td class="dim">{{ b.townhall_level }}</td>
+          <td>{{ b.attempts }}</td>
+          <td data-v="{{ b.best_stars }}" class="num-strong">{{ b.best_stars }}&#9733; {{ b.best_destruction }}%</td>
+          <td data-v="{{ b.stars_available }}" class="{{ 'dim' if b.stars_available == 0 }}">{{ b.stars_available }}</td>
+          <td style="text-align:left" class="dim">{{ b.advice }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<p class="note">This is the only genuinely base-specific evidence available, and it only exists once
+battle day starts: how each base has actually held up against your clan's attacks. A base that has
+absorbed two attacks for one star is telling you something no guide can.</p>
+{% endif %}
+
 <div class="kpis">
   {% for k in clan_kpis %}
   <div class="kpi">

@@ -262,3 +262,48 @@ footer p { margin: var(--s1) 0; }
 }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* --- War plan --------------------------------------------------------- */
+
+.plan { display: grid; gap: var(--s3); }
+
+.plan-item {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: var(--s4);
+}
+.plan-item.warn { border-color: #4a2a2a; }
+
+.plan-row {
+  display: flex; align-items: baseline; gap: var(--s2);
+  flex-wrap: wrap; margin-bottom: var(--s2);
+}
+.plan-arrow { color: var(--ink-3); }
+.plan-name { font-weight: 650; }
+.plan-th { color: var(--ink-3); font-size: 0.84rem; margin-left: 5px; }
+.plan-exp { margin-left: auto; font-weight: 680; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Confidence is a label, never colour alone. */
+.tag {
+  font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 3px 8px; border-radius: 5px; font-weight: 650;
+  background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line);
+}
+.tag.measured { color: var(--good); border-color: #1d4023; }
+.tag.baseline { color: var(--ink-3); }
+.tag.danger { color: var(--critical); border-color: #4a2a2a; }
+
+.basis { color: var(--ink-3); font-size: 0.84rem; margin: 0 0 var(--s3); }
+
+.army { border-top: 1px solid var(--line-soft); padding-top: var(--s3); margin-top: var(--s3); }
+.army-name { font-weight: 640; font-size: 0.94rem; }
+.army dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px var(--s3); margin: var(--s2) 0 0; font-size: 0.86rem; }
+.army dt { color: var(--ink-3); }
+.army dd { margin: 0; color: var(--ink-2); }
+.army .why { font-size: 0.85rem; color: var(--ink-2); margin: var(--s2) 0 0; }
+.army a { color: var(--series-1); text-decoration: none; }
+.army a:hover { text-decoration: underline; }
+.army .blocked { font-size: 0.82rem; color: var(--ink-3); margin: 6px 0 0; }
+
+@media (min-width: 1024px) {
+  .plan { grid-template-columns: 1fr 1fr; }
+}

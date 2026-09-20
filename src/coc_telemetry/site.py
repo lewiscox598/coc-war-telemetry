@@ -31,6 +31,12 @@ from coc_telemetry.metrics import (
     passivity,
     war_history,
 )
+from coc_telemetry.strategy import (
+    RETRIEVED,
+    army_options,
+    cleanup_board,
+    recommend_assignments,
+)
 
 LONDON = ZoneInfo("Europe/London")
 
@@ -234,9 +240,26 @@ def gather(conn: sqlite3.Connection, player_tag: str) -> dict[str, Any]:
         ),
     ]
 
+    # War plan: only meaningful while a war exists. Each attacker carries the
+    # evidence behind its target and the armies they can actually field.
+    plan: list[dict[str, Any]] = []
+    cleanup: list[dict[str, Any]] = []
+    if war:
+        for row in recommend_assignments(conn, war["war_id"]):
+            row = dict(row)
+            row["armies"] = army_options(conn, row["attacker_tag"], row["attacker_th"])
+            plan.append(row)
+        if war["state"] in ("inWar", "warEnded"):
+            cleanup = cleanup_board(conn, war["war_id"])
+
     return {
         "war": war,
         "roster": roster,
+        "plan": plan,
+        "cleanup": cleanup,
+        "plan_expected": round(sum(p["expected_stars"] for p in plan), 1),
+        "plan_max": len(plan) * 3,
+        "army_retrieved": RETRIEVED,
         "hero": _hero(war, roster, history),
         "history": history,
         "members": members,
