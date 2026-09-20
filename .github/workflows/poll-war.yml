@@ -1,0 +1,40 @@
+name: Poll war
+
+# GitHub's cron has a five minute floor and runs are frequently delayed. That is
+# harmless here: every poll returns the cumulative attack list to date, not a delta,
+# so a missed run self-heals on the next successful one.
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+# Shared with nightly.yml. Both workflows commit to data/, so they must never run
+# concurrently or they produce conflicting commits. Queued rather than cancelled,
+# because a skipped poll is a permanent gap in the archive.
+concurrency:
+  group: telemetry-data
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  poll:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - run: uv sync --frozen
+
+      - name: Poll current war
+        env:
+          COC_API_TOKEN: ${{ secrets.COC_API_TOKEN }}
+        run: uv run coc-telemetry poll
+
+      - name: Commit captures
+        run: .github/commit-data.sh "war poll"

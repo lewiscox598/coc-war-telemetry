@@ -290,7 +290,11 @@ class CocClient:
         return self._get(f"/clans/{url_tag(clan_tag)}", "clan")
 
     def player(self, player_tag: str) -> ApiResult:
-        return self._get(f"/players/{url_tag(player_tag)}", "player")
+        """Player record. The slug carries the tag so every member gets its own
+        capture stream and change-detection works per player."""
+        return self._get(
+            f"/players/{url_tag(player_tag)}", f"player_{_slug_tag(player_tag)}"
+        )
 
     def capital_raid_seasons(self, clan_tag: str, *, limit: int = 10) -> ApiResult:
         return self._get(

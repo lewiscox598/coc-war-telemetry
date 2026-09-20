@@ -1,0 +1,8 @@
+# Which clan and player this archive tracks. Tags are not secret; the API token is,
+# and lives in .env locally or the COC_API_TOKEN repo secret in CI.
+clan_tag = "#2U9QLCY8Y"
+player_tag = "#202VL9GR"
+
+# Poll every clan member's player record nightly, not just player_tag. Cheap for a
+# small clan and the only source of war stars, since ClanMember omits the field.
+poll_all_members = true
