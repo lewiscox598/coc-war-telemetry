@@ -42,7 +42,7 @@ jobs:
       # No COC_API_TOKEN here on purpose: build-site reads the clan identity from
       # data/raw, so the deploy path never touches the key.
       - name: Render site
-        run: uv run coc-telemetry build-site
+        run: uv run coc-telemetry build-site --demo
 
       - uses: actions/configure-pages@v5
 

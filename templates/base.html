@@ -3,24 +3,26 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#ffffff">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#141922">
 <title>{% block title %}{{ clan_name }}{% endblock %}</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@400;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ root }}style.css?v={{ css_version }}">
 </head>
 <body>
 <div class="wrap">
 
-  <div class="masthead">
-    <p class="clan">{% block masthead %}{{ clan_name }}{% endblock %}</p>
-    <p class="who">
+  {% if demo %}<p class="demo-flag">Demo &mdash; recorded fixture data, not a real war. <a href="{{ root }}">Back to the live clan page</a></p>{% endif %}
+
+  <div class="banner">
+    <h1>{% block masthead %}{{ clan_name }}{% endblock %}</h1>
+    <nav>
       <a href="{{ root }}" class="{{ 'on' if page == 'clan' }}">Clan</a>
-      &nbsp;·&nbsp;
       <a href="{{ root }}me/" class="{{ 'on' if page == 'me' }}">{{ me_name }}</a>
-    </p>
+    </nav>
   </div>
 
   {% block content %}{% endblock %}
@@ -32,9 +34,13 @@
 </div>
 
 <script>
-// Presentation only. No data fetching and no API calls: the key never reaches
-// the client. The countdown reformats a timestamp already in the page.
+// Everything below is presentation over data already embedded in this page at
+// build time. Nothing is fetched, no request leaves the browser, and the API
+// token is nowhere near the client.
 (function () {
+  "use strict";
+
+  /* --- countdown ---------------------------------------------------- */
   function tick() {
     document.querySelectorAll("[data-countdown]").forEach(function (el) {
       var delta = new Date(el.dataset.countdown).getTime() - Date.now();
@@ -45,25 +51,133 @@
     });
   }
   tick(); setInterval(tick, 30000);
-})();
 
-document.querySelectorAll("table[data-sortable]").forEach(function (table) {
-  var body = table.tBodies[0];
-  table.querySelectorAll("thead th").forEach(function (th, col) {
-    th.addEventListener("click", function () {
-      var desc = th.getAttribute("aria-sort") !== "descending";
-      table.querySelectorAll("thead th").forEach(function (o) { o.removeAttribute("aria-sort"); });
-      th.setAttribute("aria-sort", desc ? "descending" : "ascending");
-      Array.from(body.rows).sort(function (a, b) {
-        var x = a.cells[col].dataset.v ?? a.cells[col].textContent.trim();
-        var y = b.cells[col].dataset.v ?? b.cells[col].textContent.trim();
-        var nx = parseFloat(x), ny = parseFloat(y);
-        var cmp = (!isNaN(nx) && !isNaN(ny)) ? nx - ny : x.localeCompare(y);
-        return desc ? -cmp : cmp;
-      }).forEach(function (r) { body.appendChild(r); });
+  /* --- table sorting ------------------------------------------------ */
+  document.querySelectorAll("table[data-sortable]").forEach(function (table) {
+    var body = table.tBodies[0];
+    if (!body) return;
+    table.querySelectorAll("thead th").forEach(function (th, col) {
+      th.addEventListener("click", function () {
+        var desc = th.getAttribute("aria-sort") !== "descending";
+        table.querySelectorAll("thead th").forEach(function (o) { o.removeAttribute("aria-sort"); });
+        th.setAttribute("aria-sort", desc ? "descending" : "ascending");
+        Array.prototype.slice.call(body.rows).sort(function (a, b) {
+          var x = a.cells[col].dataset.v || a.cells[col].textContent.trim();
+          var y = b.cells[col].dataset.v || b.cells[col].textContent.trim();
+          var nx = parseFloat(x), ny = parseFloat(y);
+          var cmp = (!isNaN(nx) && !isNaN(ny)) ? nx - ny : x.localeCompare(y);
+          return desc ? -cmp : cmp;
+        }).forEach(function (r) { body.appendChild(r); });
+      });
     });
   });
-});
+
+  /* --- THE REPLAY ---------------------------------------------------
+     Supercell's API returns current state only, so a war's blow-by-blow is
+     gone the moment it ends. This archive kept every poll, and order_num is
+     a monotonic per-war sequence -- so the war can be wound back and played
+     forward. That is the whole point of the project, made visible. */
+  var W = window.__WAR__;
+  var slider = document.getElementById("scrub");
+  if (!W || !slider || !W.attacks || !W.attacks.length) return;
+
+  var play = document.getElementById("play");
+  var caption = document.getElementById("caption");
+  var scoreUs = document.getElementById("score-us");
+  var scoreThem = document.getElementById("score-them");
+  var total = W.attacks.length;
+  var sideOf = {};
+  W.roster.forEach(function (m) { sideOf[m.tag] = m.side; });
+
+  var arcs = {};
+  document.querySelectorAll(".tile[data-tag]").forEach(function (tile) {
+    arcs[tile.dataset.tag] = {
+      stars: tile.querySelectorAll(".arc span"),
+      pct: tile.querySelector(".pct-val"),
+      tile: tile
+    };
+  });
+
+  var shown = {};   // tag -> stars currently painted, so we only animate changes
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function stateAt(t) {
+    var best = {}, pct = {};
+    for (var i = 0; i < W.attacks.length; i++) {
+      var a = W.attacks[i];
+      if (a.n > t) break;
+      if (!(a.on in best) || a.s > best[a.on]) best[a.on] = a.s;
+      if (!(a.on in pct) || a.d > pct[a.on]) pct[a.on] = a.d;
+    }
+    return { best: best, pct: pct };
+  }
+
+  function render(t, animate) {
+    var st = stateAt(t), us = 0, them = 0;
+    W.roster.forEach(function (m) {
+      var s = st.best[m.tag] || 0;
+      if (m.side === "opponent") { us += s; } else { them += s; }
+      var a = arcs[m.tag];
+      if (!a) return;
+      for (var i = 0; i < a.stars.length; i++) {
+        var lit = i < s;
+        var was = a.stars[i].classList.contains("on");
+        a.stars[i].classList.toggle("on", lit);
+        if (!lit) {
+          // Clear the animation class when a star goes dark. Otherwise it
+          // accumulates as residue: every star that ever lit keeps "pop"
+          // forever, which makes the live state unreadable and leaves a
+          // finished animation attached to an element that may reflow.
+          a.stars[i].classList.remove("pop");
+        } else if (!was && animate && !reduce) {
+          a.stars[i].classList.remove("pop");
+          void a.stars[i].offsetWidth;          // restart the animation
+          a.stars[i].classList.add("pop");
+        }
+      }
+      a.tile.classList.toggle("cleared", s === 3);
+      if (a.pct) a.pct.textContent = (st.pct[m.tag] || 0) + "%";
+      shown[m.tag] = s;
+    });
+    if (scoreUs) scoreUs.textContent = us;
+    if (scoreThem) scoreThem.textContent = them;
+
+    var a = t > 0 ? W.attacks[t - 1] : null;
+    if (caption) {
+      caption.innerHTML = a
+        ? "Attack <b>" + a.n + "</b> of " + total + " · <b>" + a.s + "★</b> " + a.d + "%"
+        : "Before the first attack";
+    }
+    slider.style.setProperty("--pct", (total ? (t / total) * 100 : 0) + "%");
+    slider.setAttribute("aria-valuetext", a ? "attack " + a.n + " of " + total : "start of war");
+  }
+
+  slider.addEventListener("input", function () { render(+slider.value, true); });
+
+  var timer = null;
+  function stop() {
+    if (timer) { clearInterval(timer); timer = null; }
+    if (play) { play.textContent = "▶ Play"; play.setAttribute("aria-pressed", "false"); }
+  }
+  if (play) {
+    play.addEventListener("click", function () {
+      if (timer) { stop(); return; }
+      if (+slider.value >= total) { slider.value = 0; render(0, false); }
+      play.textContent = "❚❚ Pause";
+      play.setAttribute("aria-pressed", "true");
+      timer = setInterval(function () {
+        var next = +slider.value + 1;
+        slider.value = next;
+        render(next, true);
+        if (next >= total) stop();
+      }, reduce ? 120 : 620);
+    });
+  }
+  slider.addEventListener("pointerdown", stop);
+  slider.addEventListener("keydown", stop);
+
+  render(+slider.value, false);
+})();
 </script>
 </body>
 </html>

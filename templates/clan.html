@@ -1,33 +1,57 @@
 {% extends "base.html" %}
 
+{% macro tile(tag, pos, name, th, mine=false, over=0) %}
+<div class="tile {{ 'mine' if mine }}" data-tag="{{ tag }}">
+  <span class="pos">{{ pos }}</span>
+  <span class="arc"><span></span><span></span><span></span></span>
+  <span class="nm">{{ name }}</span>
+  <span class="th">TH{{ th }}{% if over %} <span class="over">+{{ over }}</span>{% endif %}</span>
+  <span class="pct"><span class="pct-val">0%</span></span>
+</div>
+{% endmacro %}
+
 {% block content %}
 
-{# --- Scoreline: the one large thing on the page --- #}
-<div class="scoreline">
-  {% if war %}
-  <div class="team us">{{ clan_name }}</div>
-  <div class="score">{{ war.clan_stars }}<span class="dash">–</span>{{ war.opponent_stars }}</div>
-  <div class="team them">{{ war.opponent_name }}</div>
+<div class="board">
+  <div class="sides">
+    <div class="side-name">{{ clan_name }}</div>
+    <div class="score">
+      <b id="score-us">{{ war.clan_stars if war else '–' }}</b>
+      <i>–</i>
+      <b class="them" id="score-them">{{ war.opponent_stars if war else '–' }}</b>
+    </div>
+    <div class="side-name them">{{ war.opponent_name if war else 'no war' }}</div>
+  </div>
   <p class="state">
-    {% if phase == 'prep' %}
+    {% if not war %}
+      {{ hero.sub }}
+    {% elif phase == 'prep' %}
       Preparation · battle day in <strong data-countdown="{{ war.start_time }}">…</strong>
       <span class="dim">({{ war.start_time | when }})</span>
     {% elif phase == 'battle' %}
-      <span class="live">● Battle day</span> · ends in <strong data-countdown="{{ war.end_time }}">…</strong>
+      <span class="live">Battle day</span> · ends in <strong data-countdown="{{ war.end_time }}">…</strong>
       · {{ attacks_used }}/{{ attacks_total }} attacks used
     {% else %}
-      <strong class="{{ war.result }}">{{ war.result or 'finished' }}</strong>
+      <strong class="{{ war.result }}">{{ war.result | upper if war.result else 'FINISHED' }}</strong>
       · {{ war.clan_destruction | round(1) }}% to {{ war.opponent_destruction | round(1) }}%
       · {{ war.end_time | when }}
     {% endif %}
   </p>
-  {% else %}
-  <div class="team us">{{ clan_name }}</div>
-  <div class="score">—</div>
-  <div class="team them">no war</div>
-  <p class="state">{{ hero.sub }}</p>
-  {% endif %}
 </div>
+
+{% if feed %}
+<div class="replay">
+  <div class="head">
+    <span class="label">Replay</span>
+    <span class="caption" id="caption">Attack {{ feed | length }} of {{ feed | length }}</span>
+  </div>
+  <div class="controls">
+    <button class="btn" id="play" type="button" aria-pressed="false">▶ Play</button>
+    <input id="scrub" type="range" min="0" max="{{ feed | length }}" value="{{ feed | length }}"
+           step="1" aria-label="Scrub through the war, attack by attack">
+  </div>
+</div>
+{% endif %}
 
 {% include "_orders.html" %}
 
@@ -41,103 +65,57 @@
   <label for="t-history">History</label>
 </nav>
 
-{# ---------------- WAR ---------------- #}
 <section class="panel panel-war">
-
-  {% if feed %}
-  <h2>Attacks</h2>
-  <ol class="feed">
-    {% for e in feed %}
-    <li class="{{ 'us' if e.ours else 'them' }} {{ 'mine' if e.is_me }}">
-      <span class="ord">{{ e.order_num }}</span>
-      <span class="ev">
-        {{ stars(e.stars, 3, size=13) | safe }}
-        <span class="nm">{{ e.attacker }}</span>
-        <span class="tgt">→ {{ e.defender }}</span>
-        <span class="meta">TH{{ e.attacker_th }} vs TH{{ e.defender_th }} ·
-        {{ e.destruction_percentage | round(0) | int }}%{% if e.new_stars != e.stars %} ·
-        {{ e.new_stars }} new{% endif %}</span>
-      </span>
-    </li>
-    {% endfor %}
-  </ol>
-
-  <h2>Head to head</h2>
-  <div class="cmp">
-    {% set st = (war.clan_stars + war.opponent_stars) or 1 %}
-    <div class="row">
-      <span class="n l">{{ war.clan_stars }}</span>
-      <span class="track"><i class="a" style="width:{{ (war.clan_stars / st * 100) | round(0) }}%"></i><i class="b" style="width:{{ (war.opponent_stars / st * 100) | round(0) }}%"></i></span>
-      <span class="n r">{{ war.opponent_stars }}</span>
-      <span class="lbl">Stars</span>
+  {% if map_rows %}
+  <div class="map">
+    {% for r in map_rows %}
+    <div class="duel">
+      {% if r.us %}{{ tile(r.us.player_tag, r.position, r.us.name, r.us.townhall_level, mine=r.is_me) }}
+      {% else %}<div class="tile"><span class="nm dim">—</span></div>{% endif %}
+      <div class="vs">vs</div>
+      {% if r.them %}{{ tile(r.them.player_tag, r.position, r.them.name, r.them.townhall_level, over=r.over) }}
+      {% else %}<div class="tile"><span class="nm dim">—</span></div>{% endif %}
     </div>
-    {% set ds = (war.clan_destruction + war.opponent_destruction) or 1 %}
-    <div class="row">
-      <span class="n l">{{ war.clan_destruction | round(1) }}%</span>
-      <span class="track"><i class="a" style="width:{{ (war.clan_destruction / ds * 100) | round(0) }}%"></i><i class="b" style="width:{{ (war.opponent_destruction / ds * 100) | round(0) }}%"></i></span>
-      <span class="n r">{{ war.opponent_destruction | round(1) }}%</span>
-      <span class="lbl">Destruction</span>
-    </div>
-  </div>
-  {% endif %}
-
-  {% if duels %}
-  <h2>{{ 'Plan' if phase == 'prep' else 'Assignments' }}</h2>
-  <div class="plan">
-    {% for d in duels %}
-    <details class="{{ 'mine' if d.is_me }}">
-      <summary>
-        <span class="s-us">
-          <span class="nm">{{ d.attacker_position }}. {{ d.attacker }}</span>
-          <span class="sub">TH{{ d.attacker_th }}{% if d.attacks_used %} · {{ d.attacks_used }}/{{ d.attacks_available }} used{% endif %}</span>
-        </span>
-        <span class="arrow">&rarr;</span>
-        <span class="s-them">
-          <span class="nm">{{ d.defender }}</span>
-          <span class="sub">TH{{ d.defender_th }}{% if d.th_diff <= -2 %} <span class="over">+{{ -d.th_diff }} over</span>{% endif %}
-          · {{ d.expected_stars }}&#9733; expected</span>
-        </span>
-      </summary>
-      <div class="detail">
-        <p>{{ d.basis }}</p>
-        {% if d.went_off_plan %}<p class="cite">Attacked off plan &mdash; the assignment was {{ d.planned_defender }}.</p>{% endif %}
-        {% for a in d.armies %}{% if loop.first %}
-          {% if a.viable %}
-          <dl>
-            <dt>Army</dt><dd>{{ a.name }}{% if not a.at_level %} (a TH{{ a.designed_for }} army){% endif %}</dd>
-            <dt>Troops</dt><dd>{{ a.composition }}</dd>
-            <dt>Spells</dt><dd>{{ a.spells }}</dd>
-          </dl>
-          <p>{{ a.note }}</p>
-          {% if not a.at_level %}<p class="cite">Nothing written for TH{{ d.attacker_th }} is fieldable on this account.</p>{% endif %}
-          <p class="cite">Source: <a href="{{ a.source }}" rel="noopener">{{ a.source_title }}</a>, retrieved {{ army_retrieved }}</p>
-          {% else %}
-          <p>No fieldable army: {{ a.blockers | join('; ') }}.</p>
-          {% endif %}
-        {% endif %}{% endfor %}
-      </div>
-    </details>
     {% endfor %}
   </div>
+
+  <h2>Orders in detail</h2>
+  {% for d in duels %}
+  <details>
+    <summary>{{ d.attacker }} → {{ d.defender }} <span class="dim">· {{ d.expected_stars }}★ {{ d.confidence }}</span></summary>
+    <div class="detail">
+      <p>{{ d.basis }}</p>
+      {% if d.went_off_plan %}<p class="cite">Attacked off plan — the assignment was {{ d.planned_defender }}.</p>{% endif %}
+      {% for a in d.armies %}{% if loop.first %}
+        {% if a.viable %}
+        <dl>
+          <dt>Army</dt><dd>{{ a.name }}{% if not a.at_level %} (a TH{{ a.designed_for }} army){% endif %}</dd>
+          <dt>Troops</dt><dd>{{ a.composition }}</dd>
+          <dt>Spells</dt><dd>{{ a.spells }}</dd>
+        </dl>
+        <p>{{ a.note }}</p>
+        {% if not a.at_level %}<p class="cite">Nothing written for TH{{ d.attacker_th }} is fieldable on this account.</p>{% endif %}
+        <p class="cite">Source: <a href="{{ a.source }}" rel="noopener">{{ a.source_title }}</a>, retrieved {{ army_retrieved }}</p>
+        {% else %}<p>No fieldable army: {{ a.blockers | join('; ') }}.</p>{% endif %}
+      {% endif %}{% endfor %}
+    </div>
+  </details>
+  {% endfor %}
 
   <p class="note"><strong>Nothing here has seen the enemy base.</strong> The API exposes only a tag,
   name, Town Hall level and map position, and no site indexes bases by tag. Targets are assigned to
   maximise total expected stars rather than to pair mirrors. Army advice is general per-Town-Hall
   strategy, filtered by what each member has actually unlocked.</p>
   {% else %}
-  <p class="empty"><strong>No war in progress</strong>The plan appears as soon as one enters preparation.</p>
+  <p class="empty"><strong>No war in progress</strong>The map appears as soon as one enters preparation.</p>
   {% endif %}
 </section>
 
-{# ---------------- MEMBERS ---------------- #}
 <section class="panel panel-members">
   {% if members and members[0].attacks_available %}
   <div class="tablewrap">
     <table data-sortable>
-      <thead><tr>
-        <th>Member</th><th>TH</th><th>Wars</th><th>Used</th><th>Missed</th>
-        <th>Usage</th><th>Stars</th><th>Added</th><th>3★</th>
-      </tr></thead>
+      <thead><tr><th>Member</th><th>TH</th><th>Wars</th><th>Used</th><th>Missed</th><th>Usage</th><th>Stars</th><th>Added</th><th>3★</th></tr></thead>
       <tbody>
         {% for m in members %}
         <tr>
@@ -163,27 +141,23 @@
   {% if passive %}
   <ul class="rows">
     {% for p in passive %}
-    <li style="grid-template-columns:1fr auto">
-      <span class="nm">{{ p.name }}</span>
-      <span class="sub">attacks {{ p.usage_before | int }}→{{ p.usage_now | int }}% · donations {{ p.donations_before | int }}→{{ p.donations_now | int }}</span>
-    </li>
+    <li style="grid-template-columns:1fr auto"><span class="nm">{{ p.name }}</span>
+    <span class="sub">attacks {{ p.usage_before | int }}→{{ p.usage_now | int }}% · donations {{ p.donations_before | int }}→{{ p.donations_now | int }}</span></li>
     {% endfor %}
   </ul>
   {% else %}
-  <p class="empty"><strong>Nobody flagged</strong>Requires attack usage <em>and</em> donations to fall together across two completed wars — one signal alone is usually a busy week.</p>
+  <p class="empty"><strong>Nobody flagged</strong>Requires attack usage <em>and</em> donations to fall together across two completed wars.</p>
   {% endif %}
 </section>
 
-{# ---------------- HISTORY ---------------- #}
 <section class="panel panel-history">
   {% if history %}
-  <ul class="rows log">
+  <ul class="rows">
     {% for w in history %}
-    <li>
-      <span class="l"><span class="nm">{{ clan_name }}</span></span>
-      <span class="sc">{{ w.clan_stars }} – {{ w.opponent_stars }}</span>
-      <span class="r"><span class="nm">{{ w.opponent_name }}</span>
+    <li style="grid-template-columns:1fr auto auto;gap:14px">
+      <span><span class="nm">{{ w.opponent_name }}</span>
       <span class="sub">{{ w.ended_label }} · <span class="{{ w.result }}">{{ w.result or w.state }}</span></span></span>
+      <span class="nm">{{ w.clan_stars }} – {{ w.opponent_stars }}</span>
     </li>
     {% endfor %}
   </ul>
@@ -195,9 +169,11 @@
   <h2>Stars per war</h2>
   {{ war_chart | safe }}
   <div class="chart-legend">
-    <span><i style="background:#2a78d6"></i>Us</span>
-    <span><i style="background:#eb6834"></i>Them</span>
+    <span><i style="background:#3987e5"></i>Us</span>
+    <span><i style="background:#d95926"></i>Them</span>
   </div>
   {% endif %}
 </section>
+
+<script>window.__WAR__ = {{ replay | safe }};</script>
 {% endblock %}

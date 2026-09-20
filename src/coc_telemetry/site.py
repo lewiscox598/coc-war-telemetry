@@ -10,6 +10,7 @@ Timestamps are stored as UTC and rendered in Europe/London.
 from __future__ import annotations
 
 import hashlib
+import json
 import shutil
 import sqlite3
 from datetime import UTC, datetime
@@ -258,6 +259,8 @@ def gather(conn: sqlite3.Connection, player_tag: str) -> dict[str, Any]:
     # The war map: one row per matchup, carrying both sides' live state.
     duels, my_duel = _duels(conn, war, player_tag)
     feed = _feed(conn, war, player_tag)
+    replay = replay_payload(conn, war, player_tag)
+    map_rows = _map_rows(conn, war, player_tag)
     phase = PHASES.get(war["state"], "idle") if war else "idle"
 
     attacks_used = sum(d["attacks_used"] for d in duels)
@@ -269,6 +272,8 @@ def gather(conn: sqlite3.Connection, player_tag: str) -> dict[str, Any]:
         "duels": duels,
         "my_duel": my_duel,
         "feed": feed,
+        "replay": replay,
+        "map_rows": map_rows,
         "phase": phase,
         "attacks_used": attacks_used,
         "attacks_total": attacks_total,
@@ -303,6 +308,7 @@ def build_site(
     player_tag: str,
     store: CaptureStore | None = None,
     clan: dict[str, Any] | None = None,
+    demo: bool = False,
 ) -> list[Path]:
     env = _environment(templates)
     context = gather(conn, player_tag)
@@ -320,6 +326,7 @@ def build_site(
         clan=clan,
         generated_at=datetime.now(UTC).astimezone(LONDON).strftime("%-d %b %Y, %H:%M %Z"),
         capture_count=len(captures),
+        demo=demo,
         first_capture=first_capture,
     )
 
@@ -355,14 +362,15 @@ def build_site(
 # number on every point. Colours are the validated categorical slots for the panel
 # surface; text never wears a data colour.
 
-# Light-mode steps. These are not the dark ones lightened: each mode is stepped
-# and validated against its own surface. Validated on white: CVD dE 24.7,
-# normal-vision dE 33.6, both series clear 3:1 against the surface.
-SURFACE = "#ffffff"
-SERIES_1 = "#2a78d6"
-SERIES_2 = "#eb6834"
-INK_3 = "#78756d"
-GRID = "#e7e5e0"
+# Documented dark-mode steps, validated against the stone chart surface:
+# lightness band, chroma, CVD dE 26.8, normal-vision dE 31.8, contrast all PASS.
+# An earlier pair was picked by eye to match the theme and failed the
+# lightness band -- which is precisely why the validator gets run.
+SURFACE = "#1a202b"
+SERIES_1 = "#3987e5"
+SERIES_2 = "#d95926"
+INK_3 = "#8b95a6"
+GRID = "#2c3545"
 
 
 def svg_sparkline(
@@ -534,6 +542,7 @@ def _duels(
         for r in conn.execute(
             """
             SELECT a.attacker_tag, a.stars, a.new_stars,
+                   d.player_tag AS defender_tag,
                    d.name AS defender, d.map_position AS defender_position,
                    d.townhall_level AS defender_th
             FROM attack_values a
@@ -557,6 +566,7 @@ def _duels(
         if hit:
             plan = {
                 **plan,
+                "defender_tag": hit["defender_tag"],
                 "defender": hit["defender"],
                 "defender_position": hit["defender_position"],
                 "defender_th": hit["defender_th"],
@@ -627,3 +637,96 @@ def _feed(
         {**dict(r), "is_me": r["attacker_tag"] == player_tag, "ours": r["attacker_side"] == "clan"}
         for r in rows
     ]
+
+
+def replay_payload(conn: sqlite3.Connection, war: dict[str, Any] | None, player_tag: str) -> str:
+    """The war as a replayable event stream, embedded in the page as JSON.
+
+    This is the one thing the archive can do that the game cannot: Supercell's API
+    returns only current state, so once a war ends its blow-by-blow is gone. We
+    kept every poll, and order_num is a monotonic per-war sequence, so the war can
+    be wound back and played forward.
+
+    Embedded at build time, not fetched. No request leaves the browser and the
+    token is nowhere near it.
+    """
+    if not war:
+        return "null"
+
+    roster = [
+        {
+            "tag": r["player_tag"],
+            "name": r["name"],
+            "pos": r["map_position"],
+            "th": r["townhall_level"],
+            "side": r["side"],
+            "me": r["player_tag"] == player_tag,
+        }
+        for r in conn.execute(
+            "SELECT player_tag, name, map_position, townhall_level, side "
+            "FROM war_members WHERE war_id = ? ORDER BY side, map_position",
+            (war["war_id"],),
+        )
+    ]
+    attacks = [
+        {
+            "n": r["order_num"],
+            "by": r["attacker_tag"],
+            "on": r["defender_tag"],
+            "s": r["stars"],
+            "d": round(r["destruction_percentage"] or 0),
+            "ours": r["attacker_side"] == "clan",
+        }
+        for r in conn.execute(
+            "SELECT order_num, attacker_tag, defender_tag, stars, "
+            "destruction_percentage, attacker_side FROM attack_values "
+            "WHERE war_id = ? ORDER BY order_num",
+            (war["war_id"],),
+        )
+    ]
+    return json.dumps(
+        {
+            "roster": roster,
+            "attacks": attacks,
+            "teamSize": war["team_size"],
+            "perMember": war["attacks_per_member"] or 1,
+            "opponent": war["opponent_name"],
+        },
+        separators=(",", ":"),
+    )
+
+
+def _map_rows(
+    conn: sqlite3.Connection, war: dict[str, Any] | None, player_tag: str
+) -> list[dict[str, Any]]:
+    """The war map, paired by map position: our #1 faces their #1.
+
+    Pairing by *assignment* looked right until two members were assigned the same
+    base and it rendered that base twice. A map shows each base exactly once;
+    who attacks whom is a separate question, answered in the orders and details.
+    """
+    if not war:
+        return []
+    sides: dict[str, dict[int, dict[str, Any]]] = {"clan": {}, "opponent": {}}
+    for r in conn.execute(
+        "SELECT player_tag, name, map_position, townhall_level, side "
+        "FROM war_members WHERE war_id = ?",
+        (war["war_id"],),
+    ):
+        sides[r["side"]][r["map_position"]] = dict(r)
+
+    positions = sorted(set(sides["clan"]) | set(sides["opponent"]))
+    rows = []
+    for pos in positions:
+        us, them = sides["clan"].get(pos), sides["opponent"].get(pos)
+        diff = us["townhall_level"] - them["townhall_level"] if us and them else 0
+        rows.append(
+            {
+                "position": pos,
+                "us": us,
+                "them": them,
+                "is_me": bool(us and us["player_tag"] == player_tag),
+                "over": -diff if diff <= -2 else 0,
+            }
+        )
+    return rows

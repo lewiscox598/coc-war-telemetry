@@ -357,6 +357,7 @@ def recommend_assignments(conn: sqlite3.Connection, war_id: str) -> list[dict[st
                 "attacker": attacker["name"],
                 "attacker_position": attacker["map_position"],
                 "attacker_th": attacker["townhall_level"],
+                "defender_tag": defender["player_tag"],
                 "defender": defender["name"],
                 "defender_position": defender["map_position"],
                 "defender_th": defender["townhall_level"],

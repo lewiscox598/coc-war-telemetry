@@ -9,6 +9,7 @@ import pytest
 from conftest import OUR_CLAN, at
 
 from coc_telemetry.ingest import connect, ingest_war
+from coc_telemetry.metrics import apply_views
 from coc_telemetry.site import (
     build_site,
     format_relative,
@@ -57,8 +58,12 @@ def test_war_chart_renders_two_labelled_series() -> None:
     svg = svg_war_stars(wars)
     assert svg.startswith("<svg") and svg.endswith("</svg>")
     assert svg.count("<path") == 2
-    # Light-mode categorical steps, validated against the white chart surface.
-    assert "#2a78d6" in svg and "#eb6834" in svg
+    # Assert the module's own validated steps, and that they are distinct.
+    # Hardcoding hexes here broke this test on three legitimate theme changes.
+    from coc_telemetry.site import SERIES_1, SERIES_2
+
+    assert SERIES_1 != SERIES_2
+    assert SERIES_1 in svg and SERIES_2 in svg
     assert "<title>" in svg, "hover layer should be present"
 
 
@@ -356,3 +361,123 @@ def test_stylesheet_is_cache_busted_on_content(tmp_path, fixture_json) -> None:
 
     assert first == again, "identical CSS must keep the same version"
     assert first != changed, "changed CSS must produce a new version"
+
+
+# --- Replay --------------------------------------------------------------
+
+
+def test_replay_is_null_without_a_war(tmp_path) -> None:
+    from coc_telemetry.site import replay_payload
+
+    conn = connect(tmp_path / "empty.db")
+    assert replay_payload(conn, None, "#202VL9GR") == "null"
+    conn.close()
+
+
+def test_replay_carries_every_attack_and_the_full_roster(tmp_path, fixture_json) -> None:
+    import json as _json
+
+    from coc_telemetry.site import replay_payload
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    apply_views(conn)
+    war = dict(conn.execute("SELECT * FROM wars").fetchone())
+    data = _json.loads(replay_payload(conn, war, "#202VL9GR"))
+
+    attacks = conn.execute("SELECT COUNT(*) FROM attacks").fetchone()[0]
+    members = conn.execute("SELECT COUNT(*) FROM war_members").fetchone()[0]
+    conn.close()
+
+    assert len(data["attacks"]) == attacks
+    assert len(data["roster"]) == members
+    orders = [a["n"] for a in data["attacks"]]
+    assert orders == sorted(orders), "the replay must be in attack order"
+
+
+def test_replaying_the_payload_reproduces_the_stored_scoreline(tmp_path, fixture_json) -> None:
+    """The browser recomputes the score from the event stream. If that drifts from
+    what the API reported, the replay is lying, so this mirrors the client's
+    scoring rule and checks it against the stored result."""
+    import json as _json
+
+    from coc_telemetry.site import replay_payload
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    apply_views(conn)
+    war = dict(conn.execute("SELECT * FROM wars").fetchone())
+    data = _json.loads(replay_payload(conn, war, "#202VL9GR"))
+    conn.close()
+
+    side = {m["tag"]: m["side"] for m in data["roster"]}
+    best: dict[str, int] = {}
+    for a in data["attacks"]:  # same rule as the page
+        best[a["on"]] = max(best.get(a["on"], 0), a["s"])
+
+    ours = sum(s for tag, s in best.items() if side[tag] == "opponent")
+    theirs = sum(s for tag, s in best.items() if side[tag] == "clan")
+
+    assert ours == war["clan_stars"], "replayed clan stars diverge from the API's"
+    assert theirs == war["opponent_stars"]
+
+
+def test_replay_score_never_decreases_as_the_war_advances(tmp_path, fixture_json) -> None:
+    import json as _json
+
+    from coc_telemetry.site import replay_payload
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    apply_views(conn)
+    war = dict(conn.execute("SELECT * FROM wars").fetchone())
+    data = _json.loads(replay_payload(conn, war, "#202VL9GR"))
+    conn.close()
+
+    side = {m["tag"]: m["side"] for m in data["roster"]}
+    previous = (0, 0)
+    for t in range(len(data["attacks"]) + 1):
+        best: dict[str, int] = {}
+        for a in data["attacks"][:t]:
+            best[a["on"]] = max(best.get(a["on"], 0), a["s"])
+        now = (
+            sum(s for g, s in best.items() if side[g] == "opponent"),
+            sum(s for g, s in best.items() if side[g] == "clan"),
+        )
+        assert now[0] >= previous[0] and now[1] >= previous[1], f"score fell at t={t}"
+        previous = now
+
+
+# --- War map -------------------------------------------------------------
+
+
+def test_map_pairs_by_position_with_no_duplicate_bases(tmp_path, fixture_json) -> None:
+    """Pairing by assignment rendered one base twice when two members were sent
+    to it. A map shows each base exactly once."""
+    from coc_telemetry.site import gather
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    rows = gather(conn, "#202VL9GR")["map_rows"]
+    conn.close()
+
+    tags = [m["player_tag"] for r in rows for m in (r["us"], r["them"]) if m]
+    assert len(tags) == len(set(tags)), "a base appears more than once on the map"
+    for r in rows:
+        if r["us"] and r["them"]:
+            assert r["us"]["map_position"] == r["them"]["map_position"]
+
+
+def test_demo_banner_never_appears_on_the_live_page(tmp_path, fixture_json) -> None:
+    """Fixture data must never be mistakable for a real war."""
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+
+    live = tmp_path / "live"
+    build_site(conn, live, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR")
+    demo = tmp_path / "demo"
+    build_site(conn, demo, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR", demo=True)
+    conn.close()
+
+    assert "demo-flag" not in (live / "index.html").read_text(encoding="utf-8")
+    assert "demo-flag" in (demo / "index.html").read_text(encoding="utf-8")

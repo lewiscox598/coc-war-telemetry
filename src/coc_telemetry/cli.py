@@ -15,7 +15,7 @@ from pathlib import Path
 
 from coc_telemetry.capture import CaptureStore
 from coc_telemetry.client import ApiResult, CocApiError, CocClient, normalise_tag
-from coc_telemetry.ingest import connect, ingest_capture, rebuild
+from coc_telemetry.ingest import connect, ingest_capture, ingest_war, rebuild
 from coc_telemetry.site import build_site
 
 DEFAULT_CONFIG = Path("config.toml")
@@ -192,7 +192,58 @@ def cmd_build_site(args: argparse.Namespace) -> int:
         conn.close()
     for path in written:
         print(f"  wrote {path}")
+
+    if args.demo:
+        written = _build_demo(args, config)
+        for path in written:
+            print(f"  wrote {path}")
     return 0
+
+
+def _build_demo(args: argparse.Namespace, config: Config) -> list[Path]:
+    """Render a clearly-labelled demo from test fixtures.
+
+    The replay only has something to show once a war has attacks in it, which is
+    a problem for judging the interface during preparation. This renders the same
+    page from a recorded fixture so the feature can be used before battle day.
+    It is banner-labelled as fixture data and lives at /demo/, never at the root.
+    """
+    import json
+    from datetime import UTC, datetime
+
+    fixture = Path("tests/fixtures/war_ended.json")
+    if not fixture.is_file():
+        print("  (no fixtures; skipping demo)")
+        return []
+
+    demo_db = args.output / "_demo.sqlite"
+    demo_db.unlink(missing_ok=True)
+    conn = connect(demo_db)
+    try:
+        ingest_war(
+            conn,
+            json.loads(fixture.read_text(encoding="utf-8")),
+            datetime(2026, 9, 22, 13, 40, tzinfo=UTC),
+            config.clan_tag,
+        )
+        store = CaptureStore(args.raw)
+        for capture in store.iter_captures():
+            if capture.endpoint == "members" or capture.endpoint.startswith("player_"):
+                ingest_capture(conn, capture, config.clan_tag)
+        conn.commit()
+        written = build_site(
+            conn,
+            args.output / "demo",
+            templates=args.templates,
+            clan_name="Sunbury Massive (demo)",
+            player_tag=config.player_tag,
+            store=store,
+            demo=True,
+        )
+    finally:
+        conn.close()
+        demo_db.unlink(missing_ok=True)
+    return written
 
 
 def _clan_identity(store: CaptureStore, clan_tag: str) -> tuple[str, dict | None]:
@@ -231,6 +282,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--templates", type=Path, default=Path("templates"))
     sub = parser.add_subparsers(dest="command", required=True)
 
+    subparsers = {}
     for name, fn, help_text in [
         ("poll", cmd_poll, "poll current war, falling back to CWL"),
         ("nightly", cmd_nightly, "snapshot roster, players and capital raids"),
@@ -238,7 +290,14 @@ def build_parser() -> argparse.ArgumentParser:
         ("build-site", cmd_build_site, "render the static site"),
         ("check", cmd_check, "verify token and connectivity"),
     ]:
-        sub.add_parser(name, help=help_text).set_defaults(func=fn)
+        subparsers[name] = sub.add_parser(name, help=help_text)
+        subparsers[name].set_defaults(func=fn)
+
+    subparsers["build-site"].add_argument(
+        "--demo",
+        action="store_true",
+        help="also render /demo/ from fixtures, so the replay can be used before battle day",
+    )
     return parser
 
 
