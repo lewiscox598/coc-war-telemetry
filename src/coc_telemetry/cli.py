@@ -8,6 +8,7 @@ into a message.
 from __future__ import annotations
 
 import argparse
+import sqlite3
 import sys
 import tomllib
 from dataclasses import dataclass
@@ -173,12 +174,28 @@ def cmd_rebuild(args: argparse.Namespace) -> int:
 
 
 def cmd_build_site(args: argparse.Namespace) -> int:
-    """Render the static site. Deployed by deploy.yml in the same workflow run."""
+    """Render the static site. Deployed by deploy.yml in the same workflow run.
+
+    A war in preparation has no attacks, so the replay and the whole battle-day
+    half of the page would be empty until the fighting starts. Rather than ship
+    a hollow page and hide the working one behind a /demo/ path, the site falls
+    back to a recorded sample war and says so in one line. The moment a real
+    attack lands the live war takes over and the line disappears -- no switch to
+    throw, no second URL.
+    """
     config = Config.load(args.config)
     store = CaptureStore(args.raw)
     conn = connect(args.db)
     try:
         clan_name, clan = _clan_identity(store, config.clan_tag)
+        live_attacks = conn.execute("SELECT COUNT(*) FROM attacks").fetchone()[0]
+        use_sample = live_attacks == 0 and not args.no_sample
+
+        if use_sample:
+            print("  no attacks recorded yet, rendering a sample war")
+            conn.close()
+            conn = _sample_connection(args, config)
+
         written = build_site(
             conn,
             args.output,
@@ -187,63 +204,37 @@ def cmd_build_site(args: argparse.Namespace) -> int:
             player_tag=config.player_tag,
             store=store,
             clan=clan,
+            sample=use_sample,
         )
     finally:
         conn.close()
     for path in written:
         print(f"  wrote {path}")
-
-    if args.demo:
-        written = _build_demo(args, config)
-        for path in written:
-            print(f"  wrote {path}")
     return 0
 
 
-def _build_demo(args: argparse.Namespace, config: Config) -> list[Path]:
-    """Render a clearly-labelled demo from test fixtures.
+def _sample_connection(args: argparse.Namespace, config: Config) -> sqlite3.Connection:
+    """A throwaway database holding one recorded war, plus the real roster.
 
-    The replay only has something to show once a war has attacks in it, which is
-    a problem for judging the interface during preparation. This renders the same
-    page from a recorded fixture so the feature can be used before battle day.
-    It is banner-labelled as fixture data and lives at /demo/, never at the root.
+    The members and player records are genuine; only the war is recorded, which
+    keeps hero levels and army advice accurate even while the scoreline is not.
     """
     import json
     from datetime import UTC, datetime
 
     fixture = Path("tests/fixtures/war_ended.json")
-    if not fixture.is_file():
-        print("  (no fixtures; skipping demo)")
-        return []
-
-    demo_db = args.output / "_demo.sqlite"
-    demo_db.unlink(missing_ok=True)
-    conn = connect(demo_db)
-    try:
-        ingest_war(
-            conn,
-            json.loads(fixture.read_text(encoding="utf-8")),
-            datetime(2026, 9, 22, 13, 40, tzinfo=UTC),
-            config.clan_tag,
-        )
-        store = CaptureStore(args.raw)
-        for capture in store.iter_captures():
-            if capture.endpoint == "members" or capture.endpoint.startswith("player_"):
-                ingest_capture(conn, capture, config.clan_tag)
-        conn.commit()
-        written = build_site(
-            conn,
-            args.output / "demo",
-            templates=args.templates,
-            clan_name="Sunbury Massive (demo)",
-            player_tag=config.player_tag,
-            store=store,
-            demo=True,
-        )
-    finally:
-        conn.close()
-        demo_db.unlink(missing_ok=True)
-    return written
+    conn = connect(Path(":memory:"))
+    ingest_war(
+        conn,
+        json.loads(fixture.read_text(encoding="utf-8")),
+        datetime(2026, 9, 22, 13, 40, tzinfo=UTC),
+        config.clan_tag,
+    )
+    for capture in CaptureStore(args.raw).iter_captures():
+        if capture.endpoint == "members" or capture.endpoint.startswith("player_"):
+            ingest_capture(conn, capture, config.clan_tag)
+    conn.commit()
+    return conn
 
 
 def _clan_identity(store: CaptureStore, clan_tag: str) -> tuple[str, dict | None]:
@@ -294,9 +285,9 @@ def build_parser() -> argparse.ArgumentParser:
         subparsers[name].set_defaults(func=fn)
 
     subparsers["build-site"].add_argument(
-        "--demo",
+        "--no-sample",
         action="store_true",
-        help="also render /demo/ from fixtures, so the replay can be used before battle day",
+        help="render the empty live war rather than falling back to a sample",
     )
     return parser
 

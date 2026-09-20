@@ -19,7 +19,7 @@
 <body>
 <div class="wrap">
 
-  {% if demo %}<p class="demo-flag">Demo &mdash; recorded fixture data, not a real war. <a href="{{ root }}">Back to the live clan page</a><span class="stamp">build {{ generated_at }}</span></p>{% endif %}
+  {% if sample %}<p class="sample-note">Showing a <b>recorded sample war</b> until battle day. Your roster, hero levels and army advice below are real &mdash; only the scoreline is recorded. Live data takes over the moment the first attack lands.<span class="stamp">build {{ generated_at }}</span></p>{% endif %}
 
   <div class="banner">
     <h1>{% block masthead %}{{ clan_name }}{% endblock %}</h1>
@@ -240,9 +240,14 @@
         var army = "<b>" + esc(m.army.name) + "</b>" +
           (m.army.atLevel ? "" : ' <span class="tagi">lower-TH army</span>') +
           '<div class="sm">' + esc(m.army.troops) + "</div>";
+        if (m.army.spells) army += '<div class="sm">Spells: ' + esc(m.army.spells) + "</div>";
         if (!m.army.ok && m.army.blockers.length)
           army += '<div class="sm warn">Blocked: ' + esc(m.army.blockers.join("; ")) + "</div>";
         h += block("Army", army);
+        if (m.army.steps && m.army.steps.length) {
+          h += block("Walkthrough", '<ol class="steps">' +
+            m.army.steps.map(function (s) { return "<li>" + esc(s) + "</li>"; }).join("") + "</ol>");
+        }
       }
       h += block("This war",
         pips(made.length, per) + " " + made.length + " of " + per + " used · <b>" +

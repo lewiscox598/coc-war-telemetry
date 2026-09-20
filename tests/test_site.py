@@ -468,19 +468,58 @@ def test_map_pairs_by_position_with_no_duplicate_bases(tmp_path, fixture_json) -
             assert r["us"]["map_position"] == r["them"]["map_position"]
 
 
-def test_demo_banner_never_appears_on_the_live_page(tmp_path, fixture_json) -> None:
-    """Fixture data must never be mistakable for a real war."""
+def test_sample_war_is_labelled_and_real_data_is_not(tmp_path, fixture_json) -> None:
+    """A recorded scoreline must never be mistakable for the clan's own war, and
+    the label must disappear the moment real data is used."""
     conn = connect(tmp_path / "t.db")
     ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
 
     live = tmp_path / "live"
     build_site(conn, live, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR")
-    demo = tmp_path / "demo"
-    build_site(conn, demo, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR", demo=True)
+    sample = tmp_path / "sample"
+    build_site(
+        conn, sample, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR", sample=True
+    )
     conn.close()
 
-    assert "demo-flag" not in (live / "index.html").read_text(encoding="utf-8")
-    assert "demo-flag" in (demo / "index.html").read_text(encoding="utf-8")
+    assert "sample-note" not in (live / "index.html").read_text(encoding="utf-8")
+    labelled = (sample / "index.html").read_text(encoding="utf-8")
+    assert "sample-note" in labelled
+    assert "recorded sample war" in labelled
+
+
+def test_every_army_carries_a_step_by_step_walkthrough() -> None:
+    """Composition alone does not tell anyone how to run the attack."""
+    from coc_telemetry.strategy import ARMIES
+
+    for army in ARMIES:
+        assert len(army.steps) >= 5, f"{army.name} has too few steps"
+        for step in army.steps:
+            assert step[0].isupper(), f"{army.name}: step does not read as an instruction"
+            assert step.endswith("."), f"{army.name}: step is not a sentence"
+        joined = " ".join(army.steps).lower()
+        assert "deploy" in joined or "drop" in joined or "send" in joined, (
+            f"{army.name}: walkthrough never says what to put down"
+        )
+
+
+def test_walkthrough_reaches_both_the_page_and_the_inspector(tmp_path, fixture_json) -> None:
+    import json as _json
+
+    from coc_telemetry.site import replay_payload
+
+    conn = connect(tmp_path / "t.db")
+    ingest_war(conn, fixture_json("war_ended"), at(23), OUR_CLAN)
+    out = tmp_path / "site"
+    build_site(conn, out, templates=TEMPLATES, clan_name="X", player_tag="#202VL9GR")
+    apply_views(conn)
+    war = dict(conn.execute("SELECT * FROM wars").fetchone())
+    payload = _json.loads(replay_payload(conn, war, "#202VL9GR"))
+    conn.close()
+
+    assert 'ol class="steps"' in (out / "index.html").read_text(encoding="utf-8")
+    armies = [m["army"] for m in payload["roster"] if m.get("army")]
+    assert armies and all(a["steps"] for a in armies)
 
 
 def test_clan_badges_are_read_from_the_archive(tmp_path, fixture_json) -> None:

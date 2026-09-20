@@ -308,7 +308,7 @@ def build_site(
     player_tag: str,
     store: CaptureStore | None = None,
     clan: dict[str, Any] | None = None,
-    demo: bool = False,
+    sample: bool = False,
 ) -> list[Path]:
     env = _environment(templates)
     context = gather(conn, player_tag)
@@ -339,7 +339,7 @@ def build_site(
         clan=clan,
         generated_at=datetime.now(UTC).astimezone(LONDON).strftime("%-d %b %Y, %H:%M %Z"),
         capture_count=len(captures),
-        demo=demo,
+        sample=sample,
         first_capture=first_capture,
     )
 
@@ -743,6 +743,8 @@ def replay_payload(conn: sqlite3.Connection, war: dict[str, Any] | None, player_
                     "atLevel": best["at_level"],
                     "blockers": best["blockers"][:3],
                     "troops": best["composition"],
+                    "spells": best["spells"],
+                    "steps": best["steps"],
                 }
         else:
             entry["from"] = assigned_from.get(tag)

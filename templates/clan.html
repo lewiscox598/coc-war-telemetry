@@ -109,6 +109,11 @@
           <dt>Spells</dt><dd>{{ a.spells }}</dd>
         </dl>
         <p>{{ a.note }}</p>
+        {% if a.steps %}
+        <ol class="steps">
+          {% for s in a.steps %}<li>{{ s }}</li>{% endfor %}
+        </ol>
+        {% endif %}
         {% if not a.at_level %}<p class="cite">Nothing written for TH{{ d.attacker_th }} is fieldable on this account.</p>{% endif %}
         <p class="cite">Source: <a href="{{ a.source }}" rel="noopener">{{ a.source_title }}</a>, retrieved {{ army_retrieved }}</p>
         {% else %}<p>No fieldable army: {{ a.blockers | join('; ') }}.</p>{% endif %}

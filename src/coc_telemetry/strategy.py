@@ -51,6 +51,8 @@ class Army:
     requires: dict[str, int] = field(default_factory=dict)
     heroes: dict[str, int] = field(default_factory=dict)
     note: str = ""
+    # Ordered walkthrough: what to do, in sequence, on the clock.
+    steps: tuple[str, ...] = ()
     source: str = ""
     source_title: str = ""
 
@@ -69,6 +71,16 @@ ARMIES: Final[tuple[Army, ...]] = (
             "single wall, and clean with Archers. Against a much higher Town Hall, "
             "take the one star off the Town Hall and do not chase more."
         ),
+        steps=(
+            "Pick the side with the fewest defences and no Clan Castle cover.",
+            "Send two Wall Breakers at a single wall segment to open one compartment. Not two.",
+            "Drop every Giant in a tight line on that side so they soak defence fire together.",
+            "Once the Giants are through the wall, spread Archers in a wide line behind them "
+            "\u2014 never a clump, splash damage erases a clump.",
+            "Hold three or four Archers back to finish outlying buildings for the last percentage.",
+            "Against a much higher Town Hall, ignore all of the above: drop Giants beside the Town "
+            "Hall, take the one star, and do not chase more.",
+        ),
         source="https://clashofclans.fandom.com/wiki/Attack_Strategies:Best_attack_strategy",
         source_title="Clash of Clans Wiki - Best attack strategy",
     ),
@@ -81,6 +93,18 @@ ARMIES: Final[tuple[Army, ...]] = (
         note=(
             "The most forgiving three-star army at this level: pick the side with "
             "the fewest Air Defences, drop in a wide line, rage over the core."
+        ),
+        steps=(
+            "Count the Air Defences and find the side with the fewest \u2014 usually a corner.",
+            "Deploy two Dragons wide on that side first to pull and clear outer buildings. That is "
+            "your funnel; without it the rest drift around the outside.",
+            "Send the remaining Dragons across that side in a line, roughly a second apart, so one "
+            "splash volley cannot catch them all.",
+            "Rage as the group reaches the first compartment.",
+            "Second Rage over the core, once they are inside walls.",
+            "Hold the last Rage or Haste for the final Air Defence.",
+            "Balloons go in behind the Dragons, and only once the Air Defences are down.",
+            "Wall Breakers are for opening the Town Hall compartment late \u2014 not at the start.",
         ),
         source="https://www.newforestsafari.com/town-hall-8-attack-strategies/",
         source_title="Town Hall 8 attack strategies",
@@ -95,6 +119,16 @@ ARMIES: Final[tuple[Army, ...]] = (
             "Golems tank, Wizards clear, P.E.K.K.A finishes. Slower and less "
             "forgiving than Dragons, but it does not care about Air Defences."
         ),
+        steps=(
+            "Choose a side where the Clan Castle and the enemy Queen are not both covering.",
+            "Drop one Golem at each corner of that side to pull and hold defence fire.",
+            "Once the Golems are engaged, line the Wizards behind them to clear the outer ring.",
+            "Wall Breakers next, into the compartment the Golems are already standing against.",
+            "P.E.K.K.As go through the breach, never around the outside \u2014 they will path "
+            "round the whole base and time out.",
+            "Poison the defending Clan Castle troops the moment they come out.",
+            "Heal once the group is inside and taking splash; Rage over the Town Hall compartment.",
+        ),
         source="https://www.newforestsafari.com/gowipe-attack-strategy/",
         source_title="GoWiPe attack strategy",
     ),
@@ -107,6 +141,19 @@ ARMIES: Final[tuple[Army, ...]] = (
         note=(
             "Does not depend on heroes, which makes it the honest pick when Queen "
             "and King are underlevelled. Zap one Air Defence, funnel, go straight in."
+        ),
+        steps=(
+            "Find the Air Defence that is hardest to reach \u2014 usually the most central one. "
+            "That is the one you remove, because your troops cannot.",
+            "Work out the Lightning count before you start: at Lightning 6\u20138 that is five "
+            "Lightning plus one Earthquake for a maxed Air Defence at your level.",
+            "Zap that Air Defence before deploying a single troop.",
+            "Drop one Ice Golem on your attack side to absorb the first defensive volley.",
+            "Send the Dragons in a wide line across that whole side, not a clump.",
+            "Rage as they cross into the first compartment.",
+            "Second Rage over the core.",
+            "Balloons behind the Dragons, aimed at whatever Air Defences remain.",
+            "Freeze any Inferno Tower or Air Sweeper that is tearing through the group.",
         ),
         source="https://blueprintcoc.com/blogs/town-hall-11/best-th11-attack-strategies",
         source_title="Best TH11 attack strategies 2026",
@@ -121,6 +168,17 @@ ARMIES: Final[tuple[Army, ...]] = (
             "Strong against layered ground bases, but Witch level carries the whole "
             "attack -- a low-level Witch dies before her skeletons matter."
         ),
+        steps=(
+            "Lightning and Earthquake the Inferno Tower nearest your attack side before deploying.",
+            "Golems first, spread across the side so defence fire splits between them.",
+            "Witches behind the Golems in a line \u2014 never stacked. One Wizard Tower volley "
+            "kills a stack of Witches.",
+            "Let the skeletons build before pushing in. The skeletons are the damage, not the "
+            "Witches.",
+            "Poison the Clan Castle troops immediately \u2014 a defending Dragon ends this attack.",
+            "Bowlers go in last, behind the skeleton wall, to clear the core.",
+            "Heal the group once it is inside walls; Rage over the Town Hall.",
+        ),
         source="https://blueprintcoc.com/blogs/town-hall-10/best-th10-attack-strategies",
         source_title="Best TH10 attack strategies 2026",
     ),
@@ -134,6 +192,19 @@ ARMIES: Final[tuple[Army, ...]] = (
         note=(
             "The most versatile attack at these levels, and the most hero-dependent: "
             "the Queen must survive long enough to open a third of the base."
+        ),
+        steps=(
+            "Pick a Queen entry where she can reach a Wizard Tower or the Clan Castle early.",
+            "Open with four or five Healers behind her. Fewer than four and she dies.",
+            "Rage the Queen to push her through the first compartment; Freeze any Inferno she "
+            "walks into.",
+            "Let her draw and kill the defending Clan Castle troops before she enters the core.",
+            "Once she has opened roughly a third of the base, deploy Hogs and Miners on the "
+            "opposite side.",
+            "Heal the hybrid group as it crosses the first row of defences.",
+            "Use the Warden's ability when the group is under Inferno or Eagle fire \u2014 not "
+            "before.",
+            "Keep one Freeze back for the final Inferno.",
         ),
         source="https://www.clashchamps.com/2026/09/16/top-3-best-th12-attack-strategies-for-2026-clash-of-clans-sir-moose-gaming/",
         source_title="Top 3 best TH12 attack strategies for 2026 - Sir Moose Gaming",
@@ -409,6 +480,7 @@ def army_options(conn: sqlite3.Connection, player_tag: str, town_hall: int) -> l
             "composition": army.composition,
             "spells": army.spells,
             "note": army.note,
+            "steps": list(army.steps),
             "source": army.source,
             "source_title": army.source_title,
             "viable": not blockers,
